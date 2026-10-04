@@ -308,7 +308,8 @@ export async function listOrdersForCustomer(customerId: string) {
 /**
  * Customer confirms their own order was delivered by attaching a proof photo.
  * Only valid while status is DELIVERED and only for the order's own customer -
- * the store marks delivery, while only the customer can confirm receipt.
+ * this intentionally stays out of the store owner's and the delivery/rider
+ * level's hands, matching the real-world responsibility split.
  */
 export async function confirmDeliveryByCustomer(orderId: string, customerId: string, proofImage: string) {
   const db = getDb();
