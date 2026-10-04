@@ -65,7 +65,7 @@ export interface TimelineStep {
 
 export interface HistoryEntryLike {
   status: OrderStatus;
-  changedAt: Date;
+  changedAt: Date | string;
   isAdminOverride: boolean;
 }
 
@@ -80,7 +80,7 @@ export function buildTimeline(currentStatus: OrderStatus, history: HistoryEntryL
   if (currentStatus === "REJECTED") return [];
   const currentIndex = ORDER_SEQUENCE.indexOf(currentStatus);
 
-  const naturalTimestampByStatus = new Map<OrderStatus, Date>();
+  const naturalTimestampByStatus = new Map<OrderStatus, Date | string>();
   for (const h of history) {
     if (!h.isAdminOverride && !naturalTimestampByStatus.has(h.status)) {
       naturalTimestampByStatus.set(h.status, h.changedAt);
@@ -101,7 +101,7 @@ export function buildTimeline(currentStatus: OrderStatus, history: HistoryEntryL
       status,
       label: ORDER_STATUS_LABELS[status],
       state,
-      timestamp: naturalTs ? naturalTs.toISOString() : null,
+      timestamp: naturalTs ? new Date(naturalTs).toISOString() : null,
     };
   });
 }

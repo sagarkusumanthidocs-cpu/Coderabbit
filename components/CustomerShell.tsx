@@ -24,10 +24,13 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session?.role !== "CUSTOMER") return;
-    fetch("/api/cart")
+    const refreshCart = () => fetch("/api/cart")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setCartCount(d?.cart?.items?.reduce((n: number, it: any) => n + it.quantity, 0) ?? 0))
       .catch(() => {});
+    refreshCart();
+    window.addEventListener("giftly-cart-updated", refreshCart);
+    return () => window.removeEventListener("giftly-cart-updated", refreshCart);
   }, [session, pathname]);
 
   async function logout() {

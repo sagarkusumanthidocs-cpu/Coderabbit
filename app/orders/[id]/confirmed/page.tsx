@@ -16,9 +16,11 @@ export default function OrderConfirmedPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [order, setOrder] = useState<any>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setError(null);
     fetch(`/api/orders/${params.id}`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).message ?? "Order not found.");
@@ -26,13 +28,13 @@ export default function OrderConfirmedPage() {
       })
       .then((d) => setOrder(d.order))
       .catch((e) => setError(e.message));
-  }, [params.id]);
+  }, [params.id, reloadKey]);
 
   if (error) {
     return (
       <CustomerShell>
         <div className="p-4">
-          <ErrorState message={error} onRetry={() => router.refresh()} />
+          <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />
         </div>
       </CustomerShell>
     );
@@ -71,9 +73,9 @@ export default function OrderConfirmedPage() {
 
         <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
           <div>
-            <p className="text-sm font-medium text-ink">
-              {item?.productName} × {item?.quantity}
-            </p>
+            {order.items.map((line: { id: string; productName: string; quantity: number }) => (
+              <p key={line.id} className="text-sm font-medium text-ink">{line.productName} × {line.quantity}</p>
+            ))}
             <p className="text-xs text-muted">
               {order.store.name} · {order.city.name}
             </p>

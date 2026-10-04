@@ -165,7 +165,7 @@ export async function listAllProducts(filters: { storeId?: string; cityId?: stri
       isAvailable: filters.availableOnly ? true : undefined,
       store: filters.cityId ? { cityId: filters.cityId } : undefined,
     },
-    include: { store: true, category: true },
+    include: { store: { include: { city: true } }, category: true },
     orderBy: { createdAt: "desc" },
   });
 }

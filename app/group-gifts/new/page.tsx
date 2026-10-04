@@ -1,4 +1,5 @@
 "use client";
+import { splitGroupGiftAmount } from "@/lib/groupGiftSplit";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerShell } from "@/components/CustomerShell";
@@ -27,21 +28,30 @@ export default function NewGroupGiftPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/cities").then((r) => r.json()).then((d) => {
+    fetch("/api/cities").then(async (r) => {
+      if (!r.ok) throw new Error("Could not load cities. Please reload the page.");
+      return r.json();
+    }).then((d) => {
       setCities(d.cities);
       if (d.cities[0]) setCityId(d.cities[0].id);
-    });
+    }).catch((e) => setErrors({ _: [e.message] }));
   }, []);
 
   useEffect(() => {
     if (!cityId) return;
-    fetch(`/api/products?cityId=${cityId}`).then((r) => r.json()).then((d) => setProducts(d.products));
+    let cancelled = false;
+    fetch(`/api/products?cityId=${cityId}`).then(async (r) => {
+      if (!r.ok) throw new Error("Could not load gifts. Please try another city or reload the page.");
+      return r.json();
+    }).then((d) => { if (!cancelled) setProducts(d.products); })
+      .catch((e) => { if (!cancelled) setErrors({ _: [e.message] }); });
+    return () => { cancelled = true; };
   }, [cityId]);
 
   const selectedTotal = products.filter((p) => selectedProductIds.includes(p.id)).reduce((s, p) => s + Number(p.price), 0);
   const people = ["You"].concat(contributorNames);
   const goal = Number(goalAmount) || selectedTotal;
-  const equalPerPerson = people.length ? Math.round(goal / people.length) : 0;
+  const equalShares = splitGroupGiftAmount(goal, people.length);
   const customTotal = people.reduce((s, _n, i) => s + (Number(customAmounts[i]) || 0), 0);
 
   function toggleProduct(id: string) {
@@ -58,31 +68,36 @@ export default function NewGroupGiftPage() {
     setErrors({});
     const contributors =
       splitType === "EQUAL"
-        ? people.map((name) => ({ name, amount: equalPerPerson }))
+        ? people.map((name, i) => ({ name, amount: equalShares[i] ?? 0 }))
         : people.map((name, i) => ({ name, amount: Number(customAmounts[i]) || 0 }));
 
-    const res = await fetch("/api/group-gifts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipientName,
-        occasionType,
-        productIds: selectedProductIds,
-        cityId,
-        deliveryDate,
-        goalAmount: goal,
-        splitType,
-        message,
-        contributors,
-      }),
-    });
-    const data = await res.json();
-    setSaving(false);
-    if (!res.ok) {
-      setErrors(data.details ?? { _: [data.message ?? "Something went wrong."] });
-      return;
+    try {
+      const res = await fetch("/api/group-gifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientName,
+          occasionType,
+          productIds: selectedProductIds,
+          cityId,
+          deliveryDate,
+          goalAmount: goal,
+          splitType,
+          message,
+          contributors,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrors(data.details ?? { _: [data.message ?? "Something went wrong."] });
+        return;
+      }
+      router.push(`/group-gifts/${data.groupGift.id}`);
+    } catch {
+      setErrors({ _: ["Could not create the group gift. Please try again."] });
+    } finally {
+      setSaving(false);
     }
-    router.push(`/group-gifts/${data.groupGift.id}`);
   }
 
   return (
@@ -92,7 +107,7 @@ export default function NewGroupGiftPage() {
 
         <div>
           <label className="mb-1 block text-sm font-medium">Delivery City</label>
-          <select className="h-11 w-full rounded-2xl border border-ink/15 px-4" value={cityId} onChange={(e) => setCityId(e.target.value)}>
+          <select className="h-11 w-full rounded-2xl border border-ink/15 px-4" value={cityId} onChange={(e) => { setCityId(e.target.value); setSelectedProductIds([]); setProducts([]); }}>
             {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -142,6 +157,7 @@ export default function NewGroupGiftPage() {
         <div>
           <label className="mb-1 block text-sm font-medium">Group Goal Amount (₹)</label>
           <Input type="number" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} placeholder={String(selectedTotal || "")} />
+          {errors.goalAmount && <p className="mt-1 text-xs text-red-600">{errors.goalAmount[0]}</p>}
           <p className="mt-1 text-xs text-muted">Defaults to the total price of selected gifts (₹{selectedTotal.toLocaleString("en-IN")}).</p>
         </div>
 
@@ -159,7 +175,7 @@ export default function NewGroupGiftPage() {
                 <div key={i} className="flex items-center justify-between gap-2 py-1 text-sm">
                   <span>{name}</span>
                   {splitType === "EQUAL" ? (
-                    <span className="font-semibold">₹{equalPerPerson.toLocaleString("en-IN")}</span>
+                    <span className="font-semibold">₹{(equalShares[i] ?? 0).toLocaleString("en-IN")}</span>
                   ) : (
                     <Input
                       type="number"

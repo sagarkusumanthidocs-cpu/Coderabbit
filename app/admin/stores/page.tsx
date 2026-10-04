@@ -24,7 +24,7 @@ export default function AdminStoresPage() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load stores.");
         return r.json();
       })
-      .then((d) => setStores(d.stores))
+      .then((d) => { setStores(d.stores); setError(null); })
       .catch((e) => setError(e.message));
   }
 

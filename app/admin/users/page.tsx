@@ -11,6 +11,8 @@ import { HelpCircle } from "lucide-react";
 export default function AdminUsersReportsPage() {
   const [tab, setTab] = useState("users");
   const [users, setUsers] = useState<any[] | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [reports, setReports] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,13 +22,16 @@ export default function AdminUsersReportsPage() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load users.");
         return r.json();
       })
-      .then((d) => setUsers(d.users))
+      .then((d) => { setUsers(d.users); setError(null); })
       .catch((e) => setError(e.message));
     fetch("/api/admin/reports")
-      .then((r) => r.json())
-      .then(setReports)
-      .catch(() => {});
-  }, []);
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).message ?? "Could not load reports.");
+        return r.json();
+      })
+      .then((data) => { setReports(data); setReportError(null); })
+      .catch((e) => setReportError(e.message));
+  }, [reloadKey]);
 
   return (
     <AdminShell>
@@ -42,7 +47,7 @@ export default function AdminUsersReportsPage() {
       <div className="mt-4">
         {tab === "users" && (
           <>
-            {error && <ErrorState message={error} />}
+            {error && <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />}
             {!users && !error && <LoadingSkeleton className="h-40 w-full" />}
             {users && (
               <div className="space-y-2">
@@ -65,7 +70,8 @@ export default function AdminUsersReportsPage() {
 
         {tab === "reports" && (
           <>
-            {!reports && <LoadingSkeleton className="h-40 w-full" />}
+            {reportError && <ErrorState message={reportError} onRetry={() => setReloadKey((key) => key + 1)} />}
+            {!reports && !reportError && <LoadingSkeleton className="h-40 w-full" />}
             {reports && (
               <div className="grid gap-4">
                 <Card>

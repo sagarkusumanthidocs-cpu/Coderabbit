@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CustomerShell } from "@/components/CustomerShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ export default function GroupGiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [gg, setGg] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function load() {
@@ -26,19 +29,42 @@ export default function GroupGiftDetailPage() {
   useEffect(load, [id]);
 
   async function markPaid(contributorId: string) {
-    await fetch(`/api/group-gifts/${id}/contributors/${contributorId}`, { method: "PATCH" });
-    load();
+    setBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/group-gifts/${id}/contributors/${contributorId}`, { method: "PATCH" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message ?? "Could not update the contribution.");
+      setGg(result.groupGift);
+    } catch (e: any) {
+      setActionError(e.message ?? "Please try again.");
+    } finally { setBusy(false); }
   }
 
   async function remove() {
     if (!confirm(`Delete the group gift "${gg.title}"? This can't be undone.`)) return;
-    await fetch(`/api/group-gifts/${id}`, { method: "DELETE" });
-    router.push("/group-gifts");
+    try {
+      const res = await fetch(`/api/group-gifts/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message ?? "Could not delete this group gift.");
+      router.push("/group-gifts");
+    } catch (e: any) { setActionError(e.message ?? "Please try again."); }
+  }
+
+  async function proceedToOrder() {
+    const res = await fetch(`/api/group-gifts/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowPartial: true }),
+    });
+    if (!res.ok) throw new Error((await res.json()).message ?? "Could not prepare your cart.");
+    router.push("/cart?checkout=1");
   }
 
   if (error) return <CustomerShell><div className="p-4"><ErrorState message={error} onRetry={load} /></div></CustomerShell>;
   if (!gg) return <CustomerShell><div className="space-y-3 p-4"><LoadingSkeleton className="h-24 w-full" /><LoadingSkeleton className="h-24 w-full" /></div></CustomerShell>;
 
+  const primaryStoreItems = gg.items.filter((item: any) => item.product.storeId === gg.items[0]?.product.storeId);
+  const otherStoreCount = gg.items.length - primaryStoreItems.length;
   const paidCount = gg.contributors.filter((c: any) => c.paid).length;
 
   return (
@@ -93,7 +119,7 @@ export default function GroupGiftDetailPage() {
                   {c.paid ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">✓ Paid</span>
                   ) : (
-                    <Button size="sm" onClick={() => markPaid(c.id)}>Mark Paid</Button>
+                    <Button size="sm" disabled={busy} onClick={() => markPaid(c.id)}>Mark Paid</Button>
                   )}
                 </CardContent>
               </Card>
@@ -101,8 +127,15 @@ export default function GroupGiftDetailPage() {
           </div>
         </div>
 
+        {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
         {gg.isFullyFunded ? (
-          <Button className="w-full" onClick={() => router.push(`/products/${gg.items[0]?.productId}`)}>Proceed to Order →</Button>
+          <ConfirmDialog
+            trigger={<Button className="w-full">Proceed to Order →</Button>}
+            title="Prepare your gift order"
+            description={`${otherStoreCount ? `${otherStoreCount} gifts are from another store and must be ordered separately. ` : ""}Continue with ${primaryStoreItems.length} gift(s) from ${gg.items[0]?.product.store.name}? This replaces your current cart.`}
+            confirmLabel="Continue"
+            onConfirm={proceedToOrder}
+          />
         ) : (
           <Button className="w-full" variant="outline" disabled>
             Waiting for full contribution (₹{(Number(gg.goalAmount) - gg.collectedAmount).toLocaleString("en-IN")} more needed)

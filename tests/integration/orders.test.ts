@@ -368,3 +368,64 @@ describe("historical price integrity", () => {
     await db.product.update({ where: { id: productId }, data: { price: 100 } });
   });
 });
+
+describe("group gift funding and cart handoff", () => {
+  it("funds an uneven equal split exactly and keeps every selected gift in checkout", async () => {
+    const { createGroupGift, markContributorPaid, prepareGroupGiftCart, deleteGroupGift } = await import("@/lib/services/groupGifts");
+    const second = await db.product.create({ data: { storeId, categoryId, name: "Second Gift", description: "d", price: 50, imageUrl: "img" } });
+    const gift = await createGroupGift(customerId, {
+      recipientName: "Group Recipient", occasionType: "BIRTHDAY", productIds: [productId, second.id], cityId,
+      deliveryDate: "2027-12-15", goalAmount: 100, splitType: "EQUAL",
+      contributors: [{ name: "Creator", amount: 33 }, { name: "Alex", amount: 33 }, { name: "Sam", amount: 33 }],
+    });
+    try {
+      await expect(prepareGroupGiftCart(customerId, gift.id, false)).rejects.toBeInstanceOf(ValidationError);
+      let funded: any = gift;
+      for (const contributor of gift.contributors.filter((c) => !c.paid)) {
+        funded = await markContributorPaid(customerId, gift.id, contributor.id);
+      }
+      expect(funded.collectedAmount).toBe(100);
+      expect(funded.isFullyFunded).toBe(true);
+      await expect(prepareGroupGiftCart(otherCustomerId, gift.id, false)).rejects.toBeInstanceOf(ForbiddenError);
+      await prepareGroupGiftCart(customerId, gift.id, false);
+      const cart = await db.cartItem.findMany({ where: { customerId } });
+      expect(cart.map((item) => item.productId).sort()).toEqual([productId, second.id].sort());
+    } finally {
+      await db.cartItem.deleteMany({ where: { customerId } });
+      await deleteGroupGift(customerId, gift.id);
+      await db.product.delete({ where: { id: second.id } });
+    }
+  });
+
+  it("requires confirmation for mixed stores and preserves the cart if a gift becomes unavailable", async () => {
+    const { createGroupGift, prepareGroupGiftCart, deleteGroupGift, getGroupGift } = await import("@/lib/services/groupGifts");
+    const otherProduct = await db.product.create({ data: { storeId: otherStoreId, categoryId, name: "Other Store Gift", description: "d", price: 50, imageUrl: "img" } });
+    const gift = await createGroupGift(customerId, {
+      recipientName: "Group Recipient", occasionType: "BIRTHDAY", productIds: [productId, otherProduct.id], cityId,
+      deliveryDate: "2027-12-15", goalAmount: 100, splitType: "EQUAL", contributors: [{ name: "Creator", amount: 100 }],
+    });
+    try {
+      const detail = await getGroupGift(customerId, gift.id);
+      const primary = detail.items[0].productId;
+      await expect(prepareGroupGiftCart(customerId, gift.id, false)).rejects.toBeInstanceOf(ValidationError);
+      await prepareGroupGiftCart(customerId, gift.id, true);
+      expect((await db.cartItem.findMany({ where: { customerId } })).map((item) => item.productId)).toEqual([primary]);
+      await db.product.update({ where: { id: primary }, data: { isAvailable: false } });
+      await expect(prepareGroupGiftCart(customerId, gift.id, true)).rejects.toBeInstanceOf(ValidationError);
+      expect(await db.cartItem.count({ where: { customerId } })).toBe(1);
+      await db.product.update({ where: { id: primary }, data: { isAvailable: true } });
+    } finally {
+      await db.cartItem.deleteMany({ where: { customerId } });
+      await deleteGroupGift(customerId, gift.id);
+      await db.product.delete({ where: { id: otherProduct.id } });
+    }
+  });
+
+  it("rejects gifts from another delivery city", async () => {
+    const { createGroupGift } = await import("@/lib/services/groupGifts");
+    await expect(createGroupGift(customerId, {
+      recipientName: "Group Recipient", occasionType: "BIRTHDAY", productIds: [productId], cityId: otherCityId,
+      deliveryDate: "2027-12-15", goalAmount: 100, splitType: "EQUAL", contributors: [{ name: "Creator", amount: 100 }],
+    })).rejects.toBeInstanceOf(ValidationError);
+  });
+});

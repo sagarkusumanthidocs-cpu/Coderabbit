@@ -54,6 +54,11 @@ describe("timeline building", () => {
     expect(steps[0].timestamp).not.toBeNull();
   });
 
+  it("renders history received through JSON on customer and admin pages", () => {
+    const jsonHistory = baseHistory.map((entry) => ({ ...entry, changedAt: entry.changedAt.toISOString() }));
+    expect(buildTimeline("PREPARING_GIFT", jsonHistory)).toEqual(buildTimeline("PREPARING_GIFT", baseHistory));
+  });
+
   it("marks an admin-skipped intermediate step without fabricating a timestamp", () => {
     // Admin jumped straight from STORE_ACCEPTED to OUT_FOR_DELIVERY: no natural
     // history for PREPARING_GIFT or READY_FOR_PICKUP.
