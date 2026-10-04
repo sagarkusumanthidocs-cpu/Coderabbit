@@ -3,7 +3,14 @@ import { formatKolkata } from "@/lib/services/scheduling";
 import type { TimelineStep } from "@/lib/services/orderStateMachine";
 import { cn } from "@/lib/utils";
 
-export function OrderTimeline({ steps }: { steps: TimelineStep[] }) {
+export function OrderTimeline({ steps, horizontal = false }: { steps: TimelineStep[]; horizontal?: boolean }) {
+  if (horizontal) return <ol className="no-scrollbar flex overflow-x-auto pb-1">{steps.map((step, index) => <li key={step.status} className="relative w-[84px] shrink-0 text-center">
+    {index > 0 && <span className={cn("absolute -left-[42px] top-3.5 h-0.5 w-[84px]", step.state === "upcoming" ? "bg-border" : "bg-rose")} />}
+    <span className={cn("relative z-10 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold", step.state === "completed" || step.state === "current" ? "bg-rose text-white" : "bg-blush text-muted")}>{step.state === "completed" ? "✓" : step.state === "admin-skipped" ? "–" : index + 1}</span>
+    <p className={cn("mt-1 text-[10px] font-semibold", step.state === "upcoming" ? "text-muted" : "text-ink")}>{step.label}</p>
+    {step.timestamp && <p className="mt-1 text-[9px] text-muted">{formatKolkata(new Date(step.timestamp))}</p>}
+    {step.state === "admin-skipped" && <p className="mt-1 text-[9px] text-amber-700">Skipped by admin correction · no event recorded</p>}
+  </li>)}</ol>;
   return (
     <ol className="space-y-0">
       {steps.map((step, i) => (

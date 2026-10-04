@@ -3,12 +3,15 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   createOrder,
+  listOrdersForCustomer,
+  listOrdersForAdmin,
   createOrderFromCart,
   transitionOrderAsStoreOwner,
   transitionOrderAsAdmin,
   getOrderForStore,
   confirmDeliveryByCustomer,
 } from "@/lib/services/orders";
+import { listAllStores, getStoreDetail, getAdminDashboard } from "@/lib/services/admin";
 import { updateProduct } from "@/lib/services/storeOwner";
 import { ValidationError, ConflictError, NotFoundError } from "@/lib/api-errors";
 import { ForbiddenError } from "@/lib/session";
@@ -119,7 +122,7 @@ function baseCheckoutInput(overrides: Partial<any> = {}) {
     deliveryAddress: "123 Some Long Enough Street",
     occasion: "Birthday" as const,
     senderName: "Sender",
-    paymentMethod: "COD" as const,
+    paymentMethod: "CARD_MOCK" as const,
     productId,
     quantity: 2,
     cityId,
@@ -128,6 +131,38 @@ function baseCheckoutInput(overrides: Partial<any> = {}) {
     ...overrides,
   };
 }
+
+describe("customer order photos", () => {
+  it("includes the gift photo for the owning customer without exposing their order to another customer", async () => {
+    const order = await createOrder({ customerId, input: baseCheckoutInput() });
+    const orders = await listOrdersForCustomer(customerId);
+    const item = orders.find((entry) => entry.id === order.id)?.items[0];
+    expect(item?.product.imageUrl).toBe("img");
+    expect(item?.productName).toBe("Test Product");
+    expect((await listOrdersForCustomer(otherCustomerId)).some((entry) => entry.id === order.id)).toBe(false);
+  });
+});
+
+describe("HTML reference checkout and admin summaries", () => {
+  it("persists mock card payment and exposes an admin order thumbnail", async () => {
+    const order = await createOrder({ customerId, input: baseCheckoutInput({ paymentMethod: "CARD_MOCK" }) });
+    expect(order.paymentMethod).toBe("CARD_MOCK");
+    const orders = await listOrdersForAdmin({ storeId });
+    expect(orders.find((entry) => entry.id === order.id)?.items[0].product.imageUrl).toBe("img");
+  });
+  it("summarizes actual store orders and omits owner credentials", async () => {
+    const stores = await listAllStores({ cityId, categoryId });
+    const store = stores.find((entry) => entry.id === storeId)!;
+    const orders = await db.order.findMany({ where: { storeId } });
+    expect(store.stats.activeOrders).toBe(orders.filter((order) => !["DELIVERED", "REJECTED"].includes(order.status)).length);
+    expect(store.stats.completedOrders).toBe(orders.filter((order) => order.status === "DELIVERED").length);
+    const detail = await getStoreDetail(storeId);
+    expect(detail.store.owner).not.toHaveProperty("passwordHash");
+    expect(stores.every((entry) => entry.cityId === cityId)).toBe(true);
+    expect((await getAdminDashboard(otherCityId)).recentOrders).toEqual([]);
+    expect((await getAdminDashboard(cityId)).recentOrders.every((entry) => entry.cityId === cityId)).toBe(true);
+  });
+});
 
 describe("createOrder", () => {
   it("calculates totals server-side from the product price, not the client", async () => {
@@ -347,8 +382,7 @@ describe("customer delivery confirmation", () => {
   it("refuses to confirm another customer's order", async () => {
     const order = await createOrder({ customerId, input: baseCheckoutInput() });
     await transitionOrderAsAdmin({ orderId: order.id, adminUserId: adminId, targetStatus: "DELIVERED", reason: "fast-forward for test", expectedVersion: order.version });
-    const otherCustomer = await db.user.create({ data: { name: "Someone Else", email: `other-${Date.now()}@test.local`, passwordHash: "x", role: "CUSTOMER" } });
-    await expect(confirmDeliveryByCustomer(order.id, otherCustomer.id, "data:image/jpeg;base64,x")).rejects.toThrow();
+    await expect(confirmDeliveryByCustomer(order.id, otherCustomerId, "data:image/jpeg;base64,x")).rejects.toThrow();
   });
 });
 

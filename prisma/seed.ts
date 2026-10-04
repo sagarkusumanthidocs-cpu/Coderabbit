@@ -2,6 +2,8 @@ import { PrismaClient, Role, DeliveryOption, PaymentMethod } from "@prisma/clien
 import { randomBytes, scrypt as scryptCb } from "crypto";
 import { promisify } from "util";
 import { existsSync } from "fs";
+import { seedDemoActivity } from "./seed-demo";
+import { DELIVERY_FEES } from "../lib/constants";
 
 // Load .env for local CLI runs (Next.js does this for the app, but tsx does not).
 if (!process.env.DATABASE_URL && existsSync(".env") && typeof process.loadEnvFile === "function") {
@@ -28,6 +30,12 @@ if (!connectionString) {
 const db = new PrismaClient();
 
 const DEMO_PASSWORD = "Demo@1234";
+const LEGACY_PHOTO_IDS = [
+  "1562690868-60bbe7293e94", "1578985545062-69928b1d9587", "1549465220-1a8b9238cd48",
+  "1545165311-45a4959db418", "1520763185298-1b434c919102", "1562777717-dc6984f65a63",
+  "1514228742587-6b1558fcca3d", "1459411621453-7b03977f4bfc", "1586788680434-30d324b2d46f",
+];
+const isLegacyPhoto = (url: string) => LEGACY_PHOTO_IDS.some((id) => url.startsWith(`https://images.unsplash.com/photo-${id}?`));
 
 function hoursAgo(h: number) {
   return new Date(Date.now() - h * 60 * 60 * 1000);
@@ -47,7 +55,7 @@ async function upsertUser(
 
   return db.user.upsert({
     where: { email },
-    update: { name, role, phone },
+    update: {},
     create: { email, name, role, phone, passwordHash },
   });
 }
@@ -110,7 +118,7 @@ async function main() {
   // Extra test account for cross-store access isolation testing.
   await upsertUser(
     "teststore2@giftapp.demo",
-    "Test Owner Two",
+    "Shreya Hegde",
     "STORE_OWNER"
   );
 
@@ -170,7 +178,7 @@ async function main() {
   }) {
     const existing = await db.store.findFirst({
       where: {
-        name: opts.name,
+        ownerUserId: opts.ownerUserId,
         cityId: opts.cityId,
       },
     });
@@ -178,7 +186,7 @@ async function main() {
     if (existing) {
       return db.store.update({
         where: { id: existing.id },
-        data: opts,
+        data: isLegacyPhoto(existing.coverImage) ? { coverImage: opts.coverImage } : {},
       });
     }
 
@@ -196,7 +204,7 @@ async function main() {
       "Fresh, handcrafted floral bouquets for every occasion.",
     address: "12 Jubilee Hills Road, Hyderabad",
     coverImage:
-      "https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=800",
+      "/images/demo/pink-roses.webp",
   });
 
   const cakeCraft = await upsertStore({
@@ -208,7 +216,7 @@ async function main() {
       "Freshly baked cakes made with love, delivered same day.",
     address: "45 Banjara Hills, Hyderabad",
     coverImage:
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800",
+      "/images/demo/chocolate-cake.webp",
   });
 
   const giftStudio = await upsertStore({
@@ -220,7 +228,7 @@ async function main() {
       "Curated gift hampers and personalized keepsakes.",
     address: "9 Madhapur Main Road, Hyderabad",
     coverImage:
-      "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800",
+      "/images/demo/gift-box.webp",
   });
 
   const bloom = await upsertStore({
@@ -232,7 +240,7 @@ async function main() {
       "Indoor plants and succulents to brighten any space.",
     address: "3 Gachibowli Circle, Hyderabad",
     coverImage:
-      "https://images.unsplash.com/photo-1545165311-45a4959db418?w=800",
+      "/images/demo/houseplants.webp",
   });
 
   const cakeCraftBlr = await upsertStore({
@@ -244,7 +252,7 @@ async function main() {
       "Bengaluru's favourite same-day cake delivery.",
     address: "22 Indiranagar 100ft Road, Bengaluru",
     coverImage:
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800",
+      "/images/demo/chocolate-cake.webp",
   });
 
   // --- Products ---
@@ -260,7 +268,7 @@ async function main() {
     const existing = await db.product.findFirst({
       where: {
         storeId: opts.storeId,
-        name: opts.name,
+        name: opts.name === "Bengaluru Red Velvet Cake" ? { in: [opts.name, "Bengaluru Butterscotch Cake"] } : opts.name,
       },
     });
 
@@ -279,7 +287,10 @@ async function main() {
     if (existing) {
       return db.product.update({
         where: { id: existing.id },
-        data,
+        data: {
+          ...(isLegacyPhoto(existing.imageUrl) ? { imageUrl: opts.imageUrl } : {}),
+          ...(existing.name === "Bengaluru Butterscotch Cake" ? { name: opts.name, description: opts.description } : {}),
+        },
       });
     }
 
@@ -296,7 +307,7 @@ async function main() {
       "A romantic blend of pink roses and blush carnations, hand-tied with love.",
     price: 1499,
     imageUrl:
-      "https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=800",
+      "/images/demo/pink-roses.webp",
     isFeatured: true,
   });
 
@@ -308,7 +319,7 @@ async function main() {
       "Bright, cheerful tulips to brighten anyone's day.",
     price: 1199,
     imageUrl:
-      "https://images.unsplash.com/photo-1520763185298-1b434c919102?w=800",
+      "/images/demo/yellow-tulips.webp",
   });
 
   const chocolateCake = await upsertProduct({
@@ -319,7 +330,7 @@ async function main() {
       "Rich, moist chocolate sponge layered with Belgian ganache.",
     price: 899,
     imageUrl:
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800",
+      "/images/demo/chocolate-cake.webp",
     isFeatured: true,
   });
 
@@ -331,7 +342,7 @@ async function main() {
       "Classic red velvet with cream cheese frosting.",
     price: 1099,
     imageUrl:
-      "https://images.unsplash.com/photo-1562777717-dc6984f65a63?w=800",
+      "/images/demo/red-velvet-cake.webp",
   });
 
   const giftHamper = await upsertProduct({
@@ -342,7 +353,7 @@ async function main() {
       "A curated hamper of chocolates, candles, and treats.",
     price: 2499,
     imageUrl:
-      "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800",
+      "/images/demo/gift-box.webp",
     isFeatured: true,
   });
 
@@ -354,7 +365,7 @@ async function main() {
       "A custom-printed mug with a name or message of your choice.",
     price: 599,
     imageUrl:
-      "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800",
+      "/images/demo/white-mug.webp",
     isFeatured: true,
   });
 
@@ -366,7 +377,7 @@ async function main() {
       "A low-maintenance indoor plant in a decorative pot.",
     price: 699,
     imageUrl:
-      "https://images.unsplash.com/photo-1545165311-45a4959db418?w=800",
+      "/images/demo/houseplants.webp",
     isFeatured: true,
   });
 
@@ -378,18 +389,18 @@ async function main() {
       "Three charming succulents, perfect for any desk or windowsill.",
     price: 549,
     imageUrl:
-      "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=800",
+      "/images/demo/succulents.webp",
   });
 
   const blrCake = await upsertProduct({
     storeId: cakeCraftBlr.id,
     categoryId: categories.cakes.id,
-    name: "Bengaluru Butterscotch Cake",
+    name: "Bengaluru Red Velvet Cake",
     description:
-      "A Bengaluru favourite - crunchy butterscotch praline on soft sponge.",
+      "A celebration-ready red velvet cake layered with cream cheese frosting.",
     price: 949,
     imageUrl:
-      "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?w=800",
+      "/images/demo/red-velvet-cake.webp",
     isFeatured: true,
   });
 
@@ -442,7 +453,7 @@ async function main() {
     }
 
     const subtotal = opts.product.price * 1;
-    const deliveryFee = 49;
+    const deliveryFee = DELIVERY_FEES[opts.deliveryOption];
     const total = subtotal + deliveryFee;
 
     const order = await db.order.create({
@@ -459,6 +470,7 @@ async function main() {
         occasion: opts.occasion,
         giftMessage: opts.giftMessage,
         deliveryOption: opts.deliveryOption,
+        ...(opts.deliveryOption === "SCHEDULED" ? { deliveryDate: new Date(opts.placedAt.getTime() + 86400000), deliverySlot: "EVENING" as const } : {}),
         paymentMethod: opts.paymentMethod,
         subtotal,
         deliveryFee,
@@ -551,7 +563,7 @@ async function main() {
     giftMessage:
       "Happy birthday! Hope your day is as sweet as this cake.",
     deliveryOption: "STANDARD",
-    paymentMethod: "COD",
+    paymentMethod: "CARD_MOCK",
   });
 
   await upsertOrder({
@@ -622,7 +634,7 @@ async function main() {
     senderName: customer.name,
     occasion: "Thank you",
     deliveryOption: "STANDARD",
-    paymentMethod: "COD",
+    paymentMethod: "CARD_MOCK",
   });
 
   // A pending Petals & Co. order actionable by store@giftapp.demo.
@@ -653,7 +665,7 @@ async function main() {
     senderName: customer2.name,
     occasion: "Congratulations",
     deliveryOption: "SCHEDULED",
-    paymentMethod: "COD",
+    paymentMethod: "CARD_MOCK",
   });
 
   // A Rejected order with reason.
@@ -690,7 +702,7 @@ async function main() {
     senderName: customer.name,
     occasion: "Just because",
     deliveryOption: "STANDARD",
-    paymentMethod: "COD",
+    paymentMethod: "CARD_MOCK",
     rejectionReason:
       "Out of stock for same-day delivery.",
   });
@@ -746,6 +758,8 @@ async function main() {
     paymentMethod: "UPI_MOCK",
   });
 
+  await seedDemoActivity(db, await hashPassword(DEMO_PASSWORD));
+
   console.log("Seeding complete.");
   console.log("");
   console.log(
@@ -772,6 +786,9 @@ async function main() {
   console.log(
     "  Store Owner:  cakecraft.blr@giftapp.demo (CakeCraft, Bengaluru)"
   );
+  console.log("  Store Owner:  teststore2@giftapp.demo (Petals Bengaluru)");
+  console.log("  Store Owner:  customcreations@giftapp.demo (Custom Creations)");
+  console.log("  Store Owner:  greenthumb@giftapp.demo (Green Thumb Nursery)");
   console.log(
     "  Admin:        admin@giftapp.demo"
   );

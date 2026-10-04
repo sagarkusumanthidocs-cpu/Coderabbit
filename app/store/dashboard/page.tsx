@@ -86,7 +86,9 @@ export default function StoreDashboardPage() {
         </button>
       </div>
 
-      <div className="mb-5 grid grid-cols-4 gap-3">
+      <div className="mb-4 flex gap-2 text-xs">{[["/store/dashboard", "My feed"], ["/store/orders", "Orders"], ["/store/products", "Products"], ["/store/reports", "Reports"]].map(([href, label], i) => <Link key={href} href={href} className={`rounded-full border px-3 py-2 ${i === 0 ? "bg-rose text-white" : "border-border bg-white"}`}>{label}</Link>)}</div>
+      <h2 className="mb-2 font-serif text-[15px] font-semibold">Quick links</h2>
+      <div className="mb-5 grid grid-cols-4 gap-2">
         <Link href="/store/products" className="relative rounded-2xl border border-border bg-white p-3 text-center">
           <span className="text-xl">🛍️</span>
           <p className="mt-1 text-xs font-semibold">Products</p>
@@ -100,7 +102,7 @@ export default function StoreDashboardPage() {
         </Link>
         <Link href="/store/profile" className="relative rounded-2xl border border-border bg-white p-3 text-center">
           <span className="text-xl">🏪</span>
-          <p className="mt-1 text-xs font-semibold">Profile</p>
+          <p className="mt-1 text-xs font-semibold">Store profile</p>
         </Link>
         <Link href="/store/reports" className="relative rounded-2xl border border-border bg-white p-3 text-center">
           <span className="text-xl">📊</span>

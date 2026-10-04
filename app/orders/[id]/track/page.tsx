@@ -169,6 +169,7 @@ export default function TrackOrderPage() {
   return (
     <CustomerShell>
       <div className="p-4">
+        <Link href="/orders" className="mb-3 block text-sm text-rose">← Back to orders</Link>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -270,7 +271,8 @@ export default function TrackOrderPage() {
           </div>
         ) : (
           <div className="mb-5 rounded-2xl bg-white p-4 shadow-sm">
-            <OrderTimeline steps={timeline} />
+            <h2 className="mb-3 text-[11px] font-bold uppercase text-muted">Order journey</h2>
+            <OrderTimeline steps={timeline} horizontal />
           </div>
         )}
 

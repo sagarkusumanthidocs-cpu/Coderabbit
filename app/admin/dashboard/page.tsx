@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -103,7 +104,7 @@ export default function AdminDashboardPage() {
       <h2 className="mb-2 mt-6 text-sm font-semibold text-ink">Recent order activity</h2>
       <div className="space-y-2">
         {data.recentOrders.map((o: any) => (
-          <div key={o.id} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
+          <Link href={`/admin/orders/${o.id}`} key={o.id} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
             <div>
               <p className="text-sm font-medium text-ink">{o.orderCode}</p>
               <p className="text-xs text-muted">
@@ -111,7 +112,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
             <StatusBadge status={o.status} />
-          </div>
+          </Link>
         ))}
       </div>
     </AdminShell>

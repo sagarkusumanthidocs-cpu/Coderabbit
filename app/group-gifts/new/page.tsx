@@ -1,4 +1,7 @@
 "use client";
+import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { splitGroupGiftAmount } from "@/lib/groupGiftSplit";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,9 +14,11 @@ const OCCASION_TYPES = ["BIRTHDAY", "ANNIVERSARY", "WEDDING", "FESTIVAL", "OTHER
 
 export default function NewGroupGiftPage() {
   const router = useRouter();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [inviteNotice, setInviteNotice] = useState("");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const [cityId, setCityId] = useState("");
-  const [products, setProducts] = useState<{ id: string; name: string; price: string; store: { name: string } }[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string; price: string; imageUrl: string; store: { name: string } }[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [recipientName, setRecipientName] = useState("");
   const [occasionType, setOccasionType] = useState<(typeof OCCASION_TYPES)[number]>("BIRTHDAY");
@@ -43,7 +48,7 @@ export default function NewGroupGiftPage() {
     fetch(`/api/products?cityId=${cityId}`).then(async (r) => {
       if (!r.ok) throw new Error("Could not load gifts. Please try another city or reload the page.");
       return r.json();
-    }).then((d) => { if (!cancelled) setProducts(d.products); })
+    }).then((d) => { if (!cancelled) { setProducts(d.products); setSelectedProductIds(d.products[0] ? [d.products[0].id] : []); } })
       .catch((e) => { if (!cancelled) setErrors({ _: [e.message] }); });
     return () => { cancelled = true; };
   }, [cityId]);
@@ -103,7 +108,9 @@ export default function NewGroupGiftPage() {
   return (
     <CustomerShell>
       <div className="space-y-4 p-4">
+        <Link href="/group-gifts" className="text-sm text-rose">← Back</Link>
         <h1 className="font-serif text-xl font-semibold text-ink">Create Group Gift</h1>
+        <p className="text-xs text-muted">Set up the details and invite friends to contribute.</p>
 
         <div>
           <label className="mb-1 block text-sm font-medium">Delivery City</label>
@@ -114,19 +121,13 @@ export default function NewGroupGiftPage() {
 
         <div>
           <label className="mb-1 block text-sm font-medium">Selected Gifts</label>
-          <div className="max-h-56 space-y-2 overflow-y-auto">
-            {products.map((p) => (
-              <Card key={p.id} className={selectedProductIds.includes(p.id) ? "border-rose" : undefined}>
-                <CardContent className="flex items-center justify-between gap-3 p-3">
-                  <div>
-                    <p className="text-sm font-semibold">{p.name}</p>
-                    <p className="text-xs text-muted">{p.store.name} &middot; ₹{Number(p.price).toLocaleString("en-IN")}</p>
-                  </div>
-                  <input type="checkbox" checked={selectedProductIds.includes(p.id)} onChange={() => toggleProduct(p.id)} />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <div className="space-y-2">{products.filter((p) => selectedProductIds.includes(p.id)).map((p) => <Card key={p.id}><CardContent className="flex items-center gap-3 p-3"><ImageWithFallback src={p.imageUrl} alt={p.name} className="h-11 w-11 shrink-0 rounded-xl object-cover" /><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{p.name}</p><p className="text-xs text-muted">{p.store.name}</p></div><p className="text-sm font-semibold text-rose">₹{Number(p.price).toLocaleString("en-IN")}</p><button aria-label={`Remove gift ${p.name}`} onClick={() => toggleProduct(p.id)}>×</button></CardContent></Card>)}</div>
+          <Button variant="outline" className="mt-3 w-full" onClick={() => setPickerOpen(true)}>+ Add another gift</Button>
+          <Sheet open={pickerOpen} onOpenChange={setPickerOpen}><SheetContent aria-describedby={undefined}>
+            <div className="mb-3 flex items-center justify-between"><SheetTitle className="font-serif text-lg font-semibold">Choose a gift</SheetTitle><button aria-label="Close gift picker" onClick={() => setPickerOpen(false)}>✕</button></div>
+            <div className="space-y-2">{products.map((p) => <button key={p.id} onClick={() => { if (!selectedProductIds.includes(p.id)) toggleProduct(p.id); setPickerOpen(false); }} className="flex w-full items-center gap-3 rounded-xl border border-border bg-white p-3 text-left"><ImageWithFallback src={p.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" /><div className="flex-1"><p className="text-sm font-semibold">{p.name}</p><p className="text-xs text-muted">{p.store.name}</p></div><span className="text-xs font-semibold text-rose">{selectedProductIds.includes(p.id) ? "✓ Selected" : `₹${Number(p.price).toLocaleString("en-IN")}`}</span></button>)}</div>
+            {!products.length && <p className="text-sm text-muted">No gifts available in this city.</p>}
+          </SheetContent></Sheet>
           {errors.productIds && <p className="mt-1 text-xs text-red-600">{errors.productIds[0]}</p>}
         </div>
 
@@ -206,12 +207,13 @@ export default function NewGroupGiftPage() {
           {contributorNames.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {contributorNames.map((n, i) => (
-                <span key={i} className="rounded-full bg-blush px-3 py-1 text-xs font-semibold text-rose">{n}</span>
+                <span key={i} className="rounded-full bg-blush px-3 py-1 text-xs font-semibold text-rose">{n} <button aria-label={`Remove ${n}`} onClick={() => { setContributorNames((names) => names.filter((_, index) => index !== i)); setCustomAmounts((amounts) => Object.fromEntries(Object.entries(amounts).filter(([index]) => Number(index) !== i + 1).map(([index, amount]) => [Number(index) > i + 1 ? Number(index) - 1 : index, amount]))); }}>×</button></span>
               ))}
             </div>
           )}
         </div>
 
+        <div><p className="mb-2 text-sm font-semibold">Invite Method</p><div className="flex gap-2"><Button className="flex-1 bg-green-700" onClick={() => setInviteNotice("Demo only — no WhatsApp invitation is sent.")}>WhatsApp</Button><Button variant="outline" className="flex-1" onClick={() => setInviteNotice("Create your group first, then copy its link from Group Gift Details.")}>Copy Link</Button></div>{inviteNotice && <p role="status" className="mt-2 text-xs text-muted">{inviteNotice}</p>}</div>
         <div>
           <label className="mb-1 block text-sm font-medium">Optional Group Message</label>
           <textarea className="w-full rounded-2xl border border-ink/15 p-3 text-sm" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} />

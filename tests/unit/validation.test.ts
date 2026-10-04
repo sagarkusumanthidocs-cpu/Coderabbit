@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recipientSchema, giftSchema, checkoutSchema } from "@/lib/validation";
+import { recipientSchema, giftSchema, checkoutSchema, cartCheckoutSchema } from "@/lib/validation";
 
 describe("recipient validation", () => {
   it("rejects a phone number not starting with 6-9", () => {
@@ -50,12 +50,19 @@ describe("checkout schema", () => {
     deliveryAddress: "123 Some Long Enough Street",
     occasion: "Birthday" as const,
     senderName: "Sender",
-    paymentMethod: "COD" as const,
+    paymentMethod: "CARD_MOCK" as const,
     productId: "prod_1",
     quantity: 2,
     cityId: "city_1",
     idempotencyKey: "0123456789abcdef",
   };
+
+  it.each(["UPI_MOCK", "CARD_MOCK", "COD", "UNKNOWN"])("validates %s for both checkout paths", (paymentMethod) => {
+    const input = { ...base, deliveryOption: "STANDARD", paymentMethod };
+    const allowed = paymentMethod === "UPI_MOCK" || paymentMethod === "CARD_MOCK";
+    expect(checkoutSchema.safeParse(input).success).toBe(allowed);
+    expect(cartCheckoutSchema.safeParse(input).success).toBe(allowed);
+  });
 
   it("requires date and slot when SCHEDULED", () => {
     const result = checkoutSchema.safeParse({ ...base, deliveryOption: "SCHEDULED" });

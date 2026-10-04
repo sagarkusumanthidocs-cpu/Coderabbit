@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { CustomerShell } from "@/components/CustomerShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -18,6 +20,7 @@ type Reminder = {
   recipientName: string;
   occasionType: string;
   date: string;
+  repeatYearly: boolean;
   remindMe: string;
   giftCategory: string | null;
   note: string | null;
@@ -28,10 +31,19 @@ const emptyForm = {
   recipientName: "",
   occasionType: "BIRTHDAY" as (typeof OCCASION_TYPES)[number],
   date: "",
-  remindMe: "3 days before",
-  giftCategory: "",
+  repeatYearly: true,
+  remindMe: "1 week before",
+  giftCategory: "Flowers",
   note: "",
 };
+
+function daysUntil(reminder: Reminder) {
+  const date = new Date(reminder.date);
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  if (reminder.repeatYearly) { date.setUTCFullYear(today.getUTCFullYear()); if (date < today) date.setUTCFullYear(date.getUTCFullYear() + 1); }
+  return Math.ceil((date.getTime() - today.getTime()) / 86400000);
+}
 
 export default function RemindersPage() {
   const [selected, setSelected] = useState<Reminder | null>(null);
@@ -70,6 +82,7 @@ export default function RemindersPage() {
       recipientName: r.recipientName,
       occasionType: r.occasionType as any,
       date: r.date.slice(0, 10),
+      repeatYearly: r.repeatYearly,
       remindMe: r.remindMe,
       giftCategory: r.giftCategory ?? "",
       note: r.note ?? "",
@@ -135,20 +148,15 @@ export default function RemindersPage() {
         )}
         {reminders && reminders.length > 0 && (
           <div className="space-y-3">
-            {reminders.map((r) => (
-              <Card key={r.id}>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelected(r)} aria-label={`View ${r.occasionName}`}>
-                    <p className="truncate font-semibold text-ink">{r.occasionName}</p>
-                    <p className="text-sm text-muted">{new Date(r.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &middot; {r.remindMe}</p>
-                  </button>
-                  <div className="flex shrink-0 gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(r)}>Edit</Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(r.id)}>Delete</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {(["Current", "Upcoming"] as const).map((section) => {
+              const rows = reminders.filter((r) => (daysUntil(r) <= 2) === (section === "Current"));
+              return rows.length > 0 && <section key={section}><h2 className="mb-2 text-sm font-semibold">{section}</h2><div className="space-y-2">{rows.map((r) => <Card key={r.id}><CardContent className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blush">{({ BIRTHDAY: "🎂", ANNIVERSARY: "💕", WEDDING: "💍", FESTIVAL: "🎉", OTHER: "🎁" } as Record<string, string>)[r.occasionType]}</span>
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelected(r)} aria-label={`View ${r.occasionName}`}><p className="truncate text-[13px] font-semibold">{r.occasionName}</p><p className="mt-1 text-xs text-muted">{new Date(r.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })} · {r.remindMe}</p></button>
+                {section === "Current" && <Link href="/" className="rounded-full bg-rose px-3 py-2 text-xs text-white">Plan gift</Link>}
+                <button aria-label={`Details for ${r.occasionName}`} onClick={() => setSelected(r)} className="px-2 text-muted">›</button>
+              </CardContent></Card>)}</div></section>;
+            })}
           </div>
         )}
 
@@ -162,6 +170,8 @@ export default function RemindersPage() {
                 <dl className="space-y-2 text-sm">
                   <div><dt className="text-muted">Recipient</dt><dd>{selected.recipientName}</dd></div>
                   <div><dt className="text-muted">Date</dt><dd>{new Date(selected.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</dd></div>
+                  <div><dt className="text-muted">Occasion</dt><dd>{selected.occasionType.toLowerCase()}</dd></div>
+                  <div><dt className="text-muted">Repeat yearly</dt><dd>{selected.repeatYearly ? "Yes" : "No"}</dd></div>
                   <div><dt className="text-muted">Remind me</dt><dd>{selected.remindMe}</dd></div>
                   {selected.giftCategory && <div><dt className="text-muted">Gift category</dt><dd>{selected.giftCategory}</dd></div>}
                   {selected.note && <div><dt className="text-muted">Note</dt><dd>{selected.note}</dd></div>}
@@ -208,6 +218,13 @@ export default function RemindersPage() {
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               {fieldErrors.date && <p className="mt-1 text-xs text-red-600">{fieldErrors.date[0]}</p>}
 
+              <label className="mt-3 flex items-center justify-between text-sm font-medium">Repeat yearly<input type="checkbox" checked={form.repeatYearly} onChange={(e) => setForm({ ...form, repeatYearly: e.target.checked })} className="h-5 w-5 accent-rose" /></label>
+              <label htmlFor="remindMe" className="mb-1 mt-3 block text-sm font-medium">Remind me</label>
+              <Select id="remindMe" value={form.remindMe} onChange={(e) => setForm({ ...form, remindMe: e.target.value })}>{["1 day before", "3 days before", "1 week before", "1 month before"].map((value) => <option key={value}>{value}</option>)}</Select>
+              <label htmlFor="giftCategory" className="mb-1 mt-3 block text-sm font-medium">Preferred gift category</label>
+              <Select id="giftCategory" value={form.giftCategory} onChange={(e) => setForm({ ...form, giftCategory: e.target.value })}>{["", "Flowers", "Cakes", "Hampers", "Personalized", "Plants"].map((value) => <option key={value} value={value}>{value || "Any category"}</option>)}</Select>
+              <label htmlFor="reminderNote" className="mb-1 mt-3 block text-sm font-medium">Optional note (gift ideas, preferences)</label>
+              <Textarea id="reminderNote" maxLength={500} rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Loves minimalist and personalized gifts…" />
               {saveError && <p role="alert" className="mt-2 text-sm text-red-600">{saveError}</p>}
               <div className="mt-4 flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancel</Button>

@@ -108,7 +108,7 @@ export default function OrderConfirmedPage() {
               )}
             </p>
             <p className="text-sm text-muted">
-              Payment: {order.paymentMethod === "COD" ? "Pay on delivery" : "UPI (mock)"} · No real payment
+              Payment: {order.paymentMethod === "COD" ? "Pay on delivery" : order.paymentMethod === "CARD_MOCK" ? "Credit Card (mock)" : "UPI (mock)"} · No real payment
             </p>
           </div>
 

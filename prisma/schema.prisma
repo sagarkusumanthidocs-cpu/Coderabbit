@@ -45,6 +45,7 @@ enum DeliverySlot {
 enum PaymentMethod {
   COD
   UPI_MOCK
+  CARD_MOCK
 }
 
 model User {

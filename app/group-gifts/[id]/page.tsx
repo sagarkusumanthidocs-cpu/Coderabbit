@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -11,6 +13,7 @@ import { ErrorState } from "@/components/ErrorState";
 export default function GroupGiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const [notice, setNotice] = useState("");
   const [gg, setGg] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -27,6 +30,11 @@ export default function GroupGiftDetailPage() {
       .catch((e) => setError(e.message));
   }
   useEffect(load, [id]);
+
+  async function share() {
+    try { await navigator.clipboard.writeText(window.location.href); setNotice("Copied! This demo link is accessible from your account; contributions are managed here."); }
+    catch { setNotice("Copy the page address to save this group gift link."); }
+  }
 
   async function markPaid(contributorId: string) {
     setBusy(true);
@@ -57,7 +65,8 @@ export default function GroupGiftDetailPage() {
       body: JSON.stringify({ allowPartial: true }),
     });
     if (!res.ok) throw new Error((await res.json()).message ?? "Could not prepare your cart.");
-    router.push("/cart?checkout=1");
+    window.dispatchEvent(new Event("giftly-cart-updated"));
+    router.push("/checkout");
   }
 
   if (error) return <CustomerShell><div className="p-4"><ErrorState message={error} onRetry={load} /></div></CustomerShell>;
@@ -70,15 +79,19 @@ export default function GroupGiftDetailPage() {
   return (
     <CustomerShell>
       <div className="space-y-4 p-4">
+        <Link href="/group-gifts" className="text-sm text-rose">← Back</Link>
         <div className="flex items-center justify-between">
           <h1 className="font-serif text-lg font-semibold text-ink">Group Gift Details</h1>
-          <button onClick={remove} className="text-xl">🗑️</button>
+          <button aria-label="Delete group gift" onClick={remove} className="text-xl">🗑️</button>
         </div>
 
+        <h2 className="font-serif text-lg font-semibold">{gg.title}</h2>
+        <p className="text-sm font-semibold">Selected gifts ({gg.items.length}) · {gg.isFullyFunded ? "✓ Ready" : "In Progress"}</p>
         {gg.items.map((it: any) => (
           <Card key={it.id}>
             <CardContent className="flex items-center justify-between gap-3">
-              <div>
+              <ImageWithFallback src={it.product.imageUrl} alt={it.product.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+              <div className="flex-1">
                 <p className="font-semibold text-ink">{it.product.name}</p>
                 <p className="text-sm text-muted">{it.product.store.name}</p>
               </div>
@@ -92,6 +105,8 @@ export default function GroupGiftDetailPage() {
             <p className="text-sm"><span className="text-muted">Recipient</span> &middot; {gg.recipientName}</p>
             <p className="mt-1 text-sm"><span className="text-muted">Occasion</span> &middot; {gg.occasionType}</p>
             <p className="mt-1 text-sm"><span className="text-muted">Delivery Date</span> &middot; {new Date(gg.deliveryDate).toLocaleDateString("en-IN")}</p>
+            <p className="mt-1 text-sm"><span className="text-muted">Delivery City</span> · {gg.city.name}</p>
+            <p className="mt-1 text-sm"><span className="text-muted">Stores</span> · {Array.from(new Set(gg.items.map((item: any) => item.product.store.name))).join(", ")}</p>
           </CardContent>
         </Card>
 
@@ -105,11 +120,12 @@ export default function GroupGiftDetailPage() {
               <div className="h-full bg-rose" style={{ width: `${gg.percentFunded}%` }} />
             </div>
             <p className="mt-2 text-xs text-muted">{gg.contributors.length} people &middot; {paidCount} contributed &middot; {gg.contributors.length - paidCount} pending</p>
+            {paidCount < gg.contributors.length && <Button size="sm" variant="outline" className="mt-2" onClick={() => setNotice("Demo only — no reminder notification is sent to contributors.")}>Send Reminder</Button>}
           </CardContent>
         </Card>
 
         <div>
-          <p className="mb-2 font-serif font-semibold">Contributors ({gg.contributors.length})</p>
+          <div className="mb-2 flex items-center justify-between"><p className="font-serif font-semibold">Contributors ({gg.contributors.length})</p><Button size="sm" variant="outline" onClick={share}>Share</Button></div>
           <div className="space-y-2">
             {gg.contributors.map((c: any) => (
               <Card key={c.id}>
@@ -127,6 +143,9 @@ export default function GroupGiftDetailPage() {
           </div>
         </div>
 
+        <Card><CardContent className="space-y-2 text-sm">{[["Total Gift Price", Number(gg.goalAmount)], ["Collected Amount", gg.collectedAmount], ["Remaining Amount", Math.max(0, Number(gg.goalAmount) - gg.collectedAmount)]].map(([label, amount]) => <div key={label} className="flex justify-between"><span className="text-muted">{label}</span><span className="font-semibold">₹{Number(amount).toLocaleString("en-IN")}</span></div>)}</CardContent></Card>
+        {notice && <p role="status" className="rounded-xl bg-blush p-3 text-sm">{notice}</p>}
+        {gg.message && <div className="rounded-xl border border-dashed border-rose bg-blush p-3 text-sm"><p className="mb-1 font-semibold text-rose">Group message</p>{gg.message}</div>}
         {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
         {gg.isFullyFunded ? (
           <ConfirmDialog

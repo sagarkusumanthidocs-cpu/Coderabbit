@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +21,7 @@ export default function StoreProfilePage() {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(storeProfileSchema),
   });
 
@@ -66,8 +68,10 @@ export default function StoreProfilePage() {
 
   return (
     <StoreShell>
+      <Link href="/store/dashboard" className="mb-3 block text-sm text-rose">← Back</Link>
       <h1 className="mb-4 font-serif text-xl font-semibold text-ink">Store profile</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-lg space-y-4 rounded-2xl bg-white p-4 shadow-sm">
+        <ImageWithFallback src={watch("coverImage") || ""} alt="Store cover" className="h-[120px] w-full rounded-2xl object-cover" />
         <div>
           <Label htmlFor="name">Store name</Label>
           <Input id="name" {...register("name")} />

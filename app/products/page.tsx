@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerShell } from "@/components/CustomerShell";
 import { CitySelector } from "@/components/CitySelector";
@@ -83,6 +84,7 @@ function ProductsInner() {
   return (
     <CustomerShell>
       <div className="px-4 pt-4">
+        <Link href="/" className="mb-3 block text-sm text-rose">← Back</Link>
         <CitySelector cities={cities} selectedCityId={cityId} onChange={setCityId} />
         <form onSubmit={submitSearch} className="relative mt-3">
           <button type="submit" aria-label="Search" className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted"><Search className="h-4 w-4" /></button>

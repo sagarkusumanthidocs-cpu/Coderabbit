@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       throw new ValidationError("Please check the highlighted fields.", parsed.error.flatten().fieldErrors as any);
     }
-    const item = await addToCart(session.userId, parsed.data.productId, parsed.data.quantity);
+    const item = await addToCart(session.userId, parsed.data.productId, parsed.data.quantity, parsed.data.replaceExisting);
     return NextResponse.json({ item }, { status: 201 });
   } catch (err) {
     return handleApiError(err);

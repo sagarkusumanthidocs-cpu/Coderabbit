@@ -62,8 +62,8 @@ export function StorePreviewSheet({
             <>
               <div className="flex items-start justify-between">
                 <div>
-                  <SheetTitle className="font-serif text-xl font-semibold text-ink">{store.name}</SheetTitle>
-                  <p className="text-sm text-muted">{store.category.name}</p>
+                  <SheetTitle className="font-serif text-[17px] font-semibold text-ink">{store.name}</SheetTitle>
+                  <p className="text-xs text-muted">{store.category.name}</p>
                 </div>
                 <button
                   onClick={() => onOpenChange(false)}
@@ -74,12 +74,12 @@ export function StorePreviewSheet({
                 </button>
               </div>
 
-              <div className="relative mt-3 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-blush">
+              <div className="relative mt-3 h-[140px] w-full overflow-hidden rounded-2xl bg-blush">
                 <ImageWithFallback src={store.coverImage} alt={store.name} className="h-full w-full object-cover" />
-                <StoreLogo name={store.name} className="absolute bottom-3 left-3 shadow-md" />
+                <ImageWithFallback src={store.coverImage} alt="" className="absolute bottom-3 left-3 h-11 w-11 rounded-xl border-2 border-white object-cover shadow-md" />
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                 <span className="flex items-center gap-1 font-medium text-ink">
                   <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                   {rating.toFixed(1)}
@@ -90,7 +90,7 @@ export function StorePreviewSheet({
                   Delivers in {delivery}
                 </span>
               </div>
-              <p className="mt-1 flex items-center gap-1 text-sm text-muted">
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted">
                 <MapPin className="h-4 w-4" />
                 Delivers in {store.city.name}
               </p>
@@ -99,18 +99,18 @@ export function StorePreviewSheet({
                 Available in {store.city.name}
               </p>
               <div className="mt-2 space-y-2">
-                {store.products.length === 0 && <p className="text-sm text-muted">No products yet.</p>}
+                {store.products.length === 0 && <p className="text-xs text-muted">No products yet.</p>}
                 {store.products.map((p: any) => (
                   <Link
                     key={p.id}
                     href={`/products/${p.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-white p-2.5 hover:shadow-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-white p-2 hover:shadow-sm"
                   >
-                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-blush">
+                    <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl bg-blush">
                       <ImageWithFallback src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
                     </div>
-                    <p className="flex-1 font-medium text-ink">{p.name}</p>
-                    <p className="font-semibold text-ink">{formatINR(p.price)}</p>
+                    <p className="flex-1 text-[13px] font-medium text-ink">{p.name}</p>
+                    <p className="text-[13px] font-semibold text-ink">{formatINR(p.price)}</p>
                   </Link>
                 ))}
               </div>
