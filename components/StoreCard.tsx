@@ -45,7 +45,7 @@ export function StoreCard({
   square?: boolean;
   onOpen?: (id: string) => void;
 }) {
-  if (square) return <Link href={`/stores/${id}`} className="overflow-hidden rounded-2xl border border-border bg-white">
+  if (square) return <Link href={`/stores/${id}`} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-white">
     <div className="aspect-square bg-blush"><ImageWithFallback src={coverImage} alt={name} className="h-full w-full object-cover" /></div>
     <div className="p-2.5"><p className="truncate text-xs font-semibold">{name}</p><p className="my-0.5 text-[10px] text-muted">{categoryName} · {cityName}</p><div className="flex items-center justify-between text-[10px]"><span>⭐ {demoRating(id).toFixed(1)}</span><span className={`rounded-full px-2 py-0.5 ${isOpen ? "bg-green-100 text-green-800" : "bg-gray-100 text-muted"}`}>{isOpen ? "Open" : "Closed"}</span></div></div>
   </Link>;

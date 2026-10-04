@@ -132,10 +132,10 @@ export default function HomePage() {
             ) : (
               <>
                 <section id="featured" className="mt-3 scroll-mt-20">
-                  <h2 className="font-serif text-[15px] font-semibold text-ink">Featured gifts in {cityName}</h2>
+                  <h2 id="featured-heading" className="font-serif text-[15px] font-semibold text-ink">Featured gifts in {cityName}</h2>
                   <p className="mb-2 text-xs text-muted">{featured.length} {featured.length === 1 ? "gift" : "gifts"} available today</p>
                   {featured.length > 0 ? (
-                    <div className="no-scrollbar flex gap-3.5 overflow-x-auto pb-1">
+                    <div role="region" aria-labelledby="featured-heading" tabIndex={0} className="no-scrollbar flex min-w-0 flex-nowrap gap-3.5 overflow-x-auto pb-1">
                       {featured.map((p: any) => <Link key={p.id} href={`/products/${p.id}`} className="w-[76px] shrink-0 text-center"><div className="mx-auto h-[72px] w-[72px] overflow-hidden rounded-full border-2 border-border bg-blush"><ImageWithFallback src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" /></div><p className="mt-1 truncate text-[11px] font-semibold">{p.name}</p></Link>)}
                     </div>
                   ) : (
@@ -144,8 +144,9 @@ export default function HomePage() {
                 </section>
 
                 <section className="mt-4">
-                  <h2 className="mb-3 font-serif text-[15px] font-semibold text-ink">Popular local stores ({stores.length})</h2>
-                  <div className="grid max-h-[460px] grid-cols-2 gap-3 overflow-y-auto">
+                  <h2 id="stores-heading" className="mb-3 font-serif text-[15px] font-semibold text-ink">Popular local stores ({stores.length})</h2>
+                  <div role="region" aria-labelledby="stores-heading" tabIndex={0} className="max-h-[460px] overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-2.5">
                     {stores.map((s: any) => (
                       <StoreCard
                         key={s.id}
@@ -158,6 +159,7 @@ export default function HomePage() {
                         square
                       />
                     ))}
+                    </div>
                   </div>
                   {!stores.length && <EmptyState title="No stores match this category" description="Try a different category or city." />}
                 </section>

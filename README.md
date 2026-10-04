@@ -242,6 +242,11 @@ profile menu and bottom navigation follow the same layout. Store Reports and
 Store profile remain available from the dashboard and account menu; admin Users
 is available from the account menu.
 
+Featured gifts stay in one horizontal row: swipe or scroll sideways to see the
+rest. Popular stores use two square cards per row, with more rows available by
+scrolling down within the store section, matching the HTML reference. Both scroll
+areas also support keyboard navigation.
+
 Checkout offers **UPI** and **Credit Card** only. Both are mock payments; no money
 is collected. Both checkout APIs reject Pay on Delivery requests. New demo seeds
 also use only Card and UPI; existing historical order payment records are retained.
