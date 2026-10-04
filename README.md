@@ -101,7 +101,7 @@ second tab logging in as a different role will replace the first tab's session t
 ### Populating the demo
 
 Run `npm run db:seed` after migrations against the database used by the app. A fresh
-seed includes 11 demo accounts, 8 stores, 41 products, 70 orders, 6 reminders and 4
+seed includes 11 demo accounts, 8 stores, 41 products, 90 orders, 6 reminders and 4
 group gifts. Every store owner has new, active, delivered and rejected orders;
 customer group gifts show both partial and complete funding. Prices, delivery fees,
 contribution totals and tracking histories agree with the application rules.
@@ -250,3 +250,22 @@ areas also support keyboard navigation.
 Checkout offers **UPI** and **Credit Card** only. Both are mock payments; no money
 is collected. Both checkout APIs reject Pay on Delivery requests. New demo seeds
 also use only Card and UPI; existing historical order payment records are retained.
+
+
+### Demonstrating customer delivery confirmation
+
+Seeding adds **20 delivered orders awaiting a customer photo**: ten each for
+`customer@giftapp.demo` and `customer2@giftapp.demo`, with order codes starting
+`GF-PHOTO-CUSTOMER-` and `GF-PHOTO-CUSTOMER2-`. They are distributed across the eight
+demo stores and have no proof image or customer confirmation initially.
+
+- Customer: open **Orders → Awaiting photo**, select an order, upload a photo,
+  tick the confirmation checkbox, then choose **Confirm Delivery**.
+- Store owner: open **Orders → Completed**, then filter **Awaiting photo** or
+  **Customer confirmed**. Open the order to see its photo, confirmation time and
+  status history. The order page refreshes automatically every 15 seconds and
+  when the window regains focus; a Refresh button is also available.
+
+Run `npm run db:seed` against the intended demo deployment database to add these
+records. Rerunning the seed preserves existing orders and submitted photos; it
+never resets customer confirmations. This feature requires no new migration.

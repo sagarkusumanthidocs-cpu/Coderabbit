@@ -104,7 +104,41 @@ export async function seedDemoActivity(db: PrismaClient, passwordHash: string) {
     }
   }
 
+  const admin = await db.user.findUniqueOrThrow({ where: { email: "admin@giftapp.demo" } });
   for (const [index, customer] of customers.entries()) {
+    // Ten additional delivered orders per demo customer. Existing confirmations,
+    // proof images and history must survive reruns of the seed.
+    for (let i = 0; i < 10; i++) {
+      const store = stores[i % stores.length];
+      const product = await db.product.findUniqueOrThrow({ where: { id: `demo-product-${store.owner.email.split("@")[0]}-${i % 4}` } });
+      const orderCode = `GF-PHOTO-${customer.email.split("@")[0].toUpperCase()}-${String(i + 1).padStart(2, "0")}`;
+      const placedAt = new Date(now.getTime() - (120 + i * 180 + index * 15) * 60000);
+      const subtotal = new Prisma.Decimal(product.price);
+      const deliveryFee = DELIVERY_FEES.STANDARD;
+      await db.order.upsert({
+        where: { orderCode }, update: {},
+        create: {
+          orderCode, idempotencyKey: `seed-${orderCode}`, customerId: customer.id,
+          storeId: store.id, cityId: store.cityId, status: "DELIVERED", version: progression.length,
+          deliveryConfirmedByCustomer: false, proofImage: null,
+          recipientName: recipients[(index + i) % recipients.length], recipientPhone: "9000000000",
+          deliveryAddress: `Flat ${301 + i}, Jasmine Apartments, ${store.city.name}`,
+          pincode: store.city.name === "Hyderabad" ? "500081" : "560038",
+          senderName: customer.name, occasion: i % 2 ? "Birthday" : "Thank you",
+          giftMessage: "A little gift to make your day special!",
+          deliveryOption: "STANDARD", paymentMethod: i % 2 ? "UPI_MOCK" : "CARD_MOCK",
+          subtotal, deliveryFee, total: subtotal.add(deliveryFee), placedAt,
+          items: { create: { productId: product.id, productName: product.name, unitPrice: product.price, quantity: 1, lineTotal: subtotal } },
+          statusHistory: { create: progression.map((status, j) => ({
+            previousStatus: j ? progression[j - 1] : null, status,
+            changedByRole: status === "DELIVERED" ? "ADMIN" : j ? "STORE_OWNER" : "CUSTOMER",
+            changedById: status === "DELIVERED" ? admin.id : j ? store.ownerUserId : customer.id,
+            changedAt: new Date(placedAt.getTime() + j * 5 * 60000),
+            note: status === "DELIVERED" ? "Demo delivery recorded; awaiting customer photo confirmation." : null,
+          })) },
+        },
+      });
+    }
     const reminders: { recipient: string; title: string; type: OccasionType; days: number; category: string; note: string }[] = [
       { recipient: "Kavya", title: "Kavya's Birthday", type: "BIRTHDAY", days: 2, category: "Cakes", note: "She loves chocolate cake. Add a handwritten card." },
       { recipient: "Mom & Dad", title: "Mom & Dad's Anniversary", type: "ANNIVERSARY", days: 8, category: "Flowers", note: "A pink rose bouquet for their anniversary dinner." },
