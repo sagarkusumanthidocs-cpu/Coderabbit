@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
 import { CustomerShell } from "@/components/CustomerShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +34,7 @@ const emptyForm = {
 };
 
 export default function RemindersPage() {
+  const [selected, setSelected] = useState<Reminder | null>(null);
   const [reminders, setReminders] = useState<Reminder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export default function RemindersPage() {
         return;
       }
       setShowForm(false);
+      window.dispatchEvent(new Event("giftly-reminders-updated"));
       load();
     } catch {
       setSaveError("Could not save the reminder. Please try again.");
@@ -105,6 +109,8 @@ export default function RemindersPage() {
     try {
       const res = await fetch(`/api/reminders/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).message ?? "Could not delete this reminder.");
+      setSelected(null);
+      window.dispatchEvent(new Event("giftly-reminders-updated"));
       load();
     } catch (e: any) { setError(e.message ?? "Please try again."); }
   }
@@ -132,10 +138,10 @@ export default function RemindersPage() {
             {reminders.map((r) => (
               <Card key={r.id}>
                 <CardContent className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelected(r)} aria-label={`View ${r.occasionName}`}>
                     <p className="truncate font-semibold text-ink">{r.occasionName}</p>
                     <p className="text-sm text-muted">{new Date(r.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &middot; {r.remindMe}</p>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-2">
                     <Button size="sm" variant="outline" onClick={() => openEdit(r)}>Edit</Button>
                     <Button size="sm" variant="destructive" onClick={() => remove(r.id)}>Delete</Button>
@@ -145,6 +151,31 @@ export default function RemindersPage() {
             ))}
           </div>
         )}
+
+        <Sheet open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+          <SheetContent>
+            <SheetTitle className="font-serif text-lg font-semibold">Reminder Details</SheetTitle>
+            <SheetDescription className="mt-1 text-sm text-muted">Choose a gift for your upcoming occasion.</SheetDescription>
+            {selected && (
+              <div className="mt-4 space-y-4">
+                <h2 className="font-semibold text-ink">{selected.occasionName}</h2>
+                <dl className="space-y-2 text-sm">
+                  <div><dt className="text-muted">Recipient</dt><dd>{selected.recipientName}</dd></div>
+                  <div><dt className="text-muted">Date</dt><dd>{new Date(selected.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</dd></div>
+                  <div><dt className="text-muted">Remind me</dt><dd>{selected.remindMe}</dd></div>
+                  {selected.giftCategory && <div><dt className="text-muted">Gift category</dt><dd>{selected.giftCategory}</dd></div>}
+                  {selected.note && <div><dt className="text-muted">Note</dt><dd>{selected.note}</dd></div>}
+                </dl>
+                <Link href="/" className="flex h-11 w-full items-center justify-center rounded-full bg-rose font-semibold text-white hover:bg-rose/90">Plan gift →</Link>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { openEdit(selected); setSelected(null); }}>Edit</Button>
+                  <Button variant="destructive" className="flex-1" onClick={() => remove(selected.id)}>Delete</Button>
+                </div>
+              </div>
+            )}
+            <SheetClose asChild><Button variant="outline" className="mt-3 w-full">Close</Button></SheetClose>
+          </SheetContent>
+        </Sheet>
 
         {showForm && (
           <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={() => setShowForm(false)}>

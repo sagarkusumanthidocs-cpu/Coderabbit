@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { CustomerShell } from "@/components/CustomerShell";
 import { CitySelector } from "@/components/CitySelector";
+import { StoreCard } from "@/components/StoreCard";
 import { ProductCard } from "@/components/ProductCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingSkeleton";
@@ -14,7 +15,6 @@ import { useFavorites } from "@/lib/hooks/useFavorites";
 import { Search } from "lucide-react";
 
 function ProductsInner() {
-  const router = useRouter();
   const sp = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
@@ -25,6 +25,7 @@ function ProductsInner() {
   const [category, setCategory] = useState(sp.get("category") ?? "");
   const [sort, setSort] = useState(sp.get("sort") ?? "newest");
   const [categories, setCategories] = useState<any[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [products, setProducts] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +60,7 @@ function ProductsInner() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load products.");
         return r.json();
       })
-      .then((d) => setProducts(d.products))
+      .then((d) => { setProducts(d.products); setStores(d.stores ?? []); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [cityId, category, sort, searchQuery]);
@@ -84,8 +85,8 @@ function ProductsInner() {
       <div className="px-4 pt-4">
         <CitySelector cities={cities} selectedCityId={cityId} onChange={setCityId} />
         <form onSubmit={submitSearch} className="relative mt-3">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products..." className="pl-11" />
+          <button type="submit" aria-label="Search" className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted"><Search className="h-4 w-4" /></button>
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search gifts or stores..." className="pl-11" />
         </form>
 
         <div className="mt-3 flex gap-2">
@@ -107,15 +108,23 @@ function ProductsInner() {
         <div className="mt-5">
           {loading && <LoadingGrid count={6} />}
           {!loading && error && <ErrorState message={error} onRetry={() => { setReloadKey((key) => key + 1); load(); }} />}
-          {!loading && !error && products && products.length === 0 && (
+          {!loading && !error && products && products.length === 0 && stores.length === 0 && (
             <EmptyState
-              title="No gifts found"
+              title="No gifts or stores found"
               description="Try a different search or clear your filters."
               actionLabel="Clear filters"
               onAction={clearFilters}
             />
           )}
+          {!loading && !error && stores.length > 0 && (
+            <section className="mb-5 space-y-3" aria-label="Stores">
+              <h2 className="font-serif text-lg font-semibold">Stores</h2>
+              {stores.map((store) => <StoreCard key={store.id} id={store.id} name={store.name} categoryName={store.category.name} cityName={store.city.name} isOpen={store.isOpen} coverImage={store.coverImage} />)}
+            </section>
+          )}
           {!loading && !error && products && products.length > 0 && (
+            <section aria-label="Gifts">
+            {searchQuery.trim() && <h2 className="mb-3 font-serif text-lg font-semibold">Gifts</h2>}
             <div className="grid grid-cols-2 gap-3">
               {products.map((p) => (
                 <ProductCard
@@ -131,6 +140,7 @@ function ProductsInner() {
                 />
               ))}
             </div>
+            </section>
           )}
         </div>
       </div>

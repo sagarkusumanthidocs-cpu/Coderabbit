@@ -2,14 +2,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Compass, Package, UserRound, Gift, X, HelpCircle, LogOut, Info, Bell, Users, ShoppingCart } from "lucide-react";
+import { Home, Package, UserRound, Gift, X, HelpCircle, LogOut, Info, Bell, Users, ShoppingCart } from "lucide-react";
 import { useSession } from "@/lib/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { key: "home", label: "Home", icon: Home, href: "/" },
-  { key: "browse", label: "Browse", icon: Compass, href: "/products" },
   { key: "reminders", label: "Reminders", icon: Bell, href: "/reminders" },
   { key: "group", label: "Group", icon: Users, href: "/group-gifts" },
   { key: "orders", label: "Orders", icon: Package, href: "/orders" },
@@ -31,6 +30,25 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
     refreshCart();
     window.addEventListener("giftly-cart-updated", refreshCart);
     return () => window.removeEventListener("giftly-cart-updated", refreshCart);
+  }, [session, pathname]);
+
+  const [reminderCount, setReminderCount] = useState(0);
+  useEffect(() => {
+    if (session?.role !== "CUSTOMER") { setReminderCount(0); return; }
+    let active = true;
+    let request = 0;
+    const refresh = async () => {
+      const current = ++request;
+      try {
+        const response = await fetch("/api/reminders");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (active && current === request) setReminderCount(data.reminders.length);
+      } catch { /* Keep the last known count until the next refresh. */ }
+    };
+    refresh();
+    window.addEventListener("giftly-reminders-updated", refresh);
+    return () => { active = false; window.removeEventListener("giftly-reminders-updated", refresh); };
   }, [session, pathname]);
 
   async function logout() {
@@ -76,7 +94,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 mx-auto max-w-phone border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]">
-        <div className="mx-auto grid max-w-lg grid-cols-6">
+        <div className="mx-auto grid max-w-lg grid-cols-5">
           {NAV_ITEMS.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -86,7 +104,14 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={cn("flex min-w-0 flex-col items-center gap-1 whitespace-nowrap py-2.5 text-[10.5px] font-medium", active ? "text-rose" : "text-muted")}
               >
-                <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
+                <span className="relative">
+                  <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
+                  {item.key === "reminders" && reminderCount > 0 && (
+                    <span aria-label={`${reminderCount} saved reminders`} className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose px-1 text-[10px] font-bold text-white">
+                      {reminderCount}
+                    </span>
+                  )}
+                </span>
                 {item.label}
               </Link>
             );
