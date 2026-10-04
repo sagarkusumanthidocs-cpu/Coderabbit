@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { StoreShell } from "@/components/StoreShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
@@ -55,6 +56,7 @@ export default function StoreReportsPage() {
 
   return (
     <StoreShell>
+      <Link href="/store/dashboard" className="mb-3 block text-sm text-rose">← Back</Link>
       <p className="text-[10px] uppercase tracking-wide text-muted">Showing data for</p>
       <h1 className="mb-4 font-serif text-xl font-semibold text-ink">{data.store.name}</h1>
 

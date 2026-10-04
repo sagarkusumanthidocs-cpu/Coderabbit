@@ -11,7 +11,7 @@ export async function getAdminDashboard(cityId?: string) {
     db.order.count(),
     db.order.groupBy({ by: ["status"], _count: { _all: true } }),
     db.order.aggregate({ where: { status: "DELIVERED" }, _sum: { total: true } }),
-    db.order.findMany({ orderBy: { placedAt: "desc" }, take: 8, include: { store: true, city: true } }),
+    db.order.findMany({ where: cityId ? { cityId } : {}, orderBy: { placedAt: "desc" }, take: 8, include: { store: true, city: true } }),
   ]);
   const statusCounts: Record<string, number> = {};
   for (const row of byStatus) statusCounts[row.status] = row._count._all;
@@ -75,16 +75,26 @@ export async function getReturnsAnalytics() {
 
 export async function listAllStores(filters: { cityId?: string; categoryId?: string } = {}) {
   const db = getDb();
-  return db.store.findMany({
+  const stores = await db.store.findMany({
     where: { cityId: filters.cityId, categoryId: filters.categoryId },
     include: { city: true, category: true, owner: { select: { name: true, email: true } } },
     orderBy: { name: "asc" },
+  });
+  const counts = await db.order.groupBy({ by: ["storeId", "status"], where: { storeId: { in: stores.map((store) => store.id) } }, _count: { _all: true } });
+  return stores.map((store) => {
+    const rows = counts.filter((row) => row.storeId === store.id);
+    const total = rows.reduce((sum, row) => sum + row._count._all, 0);
+    return { ...store, stats: {
+      activeOrders: rows.filter((row) => !["DELIVERED", "REJECTED"].includes(row.status)).reduce((sum, row) => sum + row._count._all, 0),
+      completedOrders: rows.find((row) => row.status === "DELIVERED")?._count._all ?? 0,
+      returnPercent: total ? Math.round((rows.find((row) => row.status === "REJECTED")?._count._all ?? 0) / total * 1000) / 10 : 0,
+    } };
   });
 }
 
 export async function getStoreDetail(storeId: string) {
   const db = getDb();
-  const store = await db.store.findUnique({ where: { id: storeId }, include: { city: true, category: true, owner: true } });
+  const store = await db.store.findUnique({ where: { id: storeId }, include: { city: true, category: true, owner: { select: { name: true, email: true } } } });
   if (!store) throw new NotFoundError("This store could not be found.");
 
   const orders = await db.order.findMany({ where: { storeId } });

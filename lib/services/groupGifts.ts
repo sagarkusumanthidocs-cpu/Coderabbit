@@ -133,8 +133,9 @@ export async function prepareGroupGiftCart(userId: string, groupGiftId: string, 
   if (items.some(({ product }) => product.isArchived || !product.isAvailable || !product.store.isOpen || product.store.moderationStatus === "BLOCKED")) {
     throw new ValidationError("Some gifts or their store are no longer available. Your cart has not been changed.");
   }
-  await db.$transaction([
-    db.cartItem.deleteMany({ where: { customerId: userId } }),
-    db.cartItem.createMany({ data: items.map(({ productId }) => ({ customerId: userId, productId, quantity: 1 })) }),
-  ]);
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    await tx.cartItem.deleteMany({ where: { customerId: userId } });
+    await tx.cartItem.createMany({ data: items.map(({ productId }) => ({ customerId: userId, productId, quantity: 1 })) });
+  });
 }

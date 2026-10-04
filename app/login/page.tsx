@@ -29,7 +29,7 @@ function SignInView({
 }) {
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-3">
         <div>
           <Label htmlFor="identifier">Email or Phone Number</Label>
           <Input id="identifier" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="you@example.com or 98XXXXXXXX" required autoComplete="username" />
@@ -47,7 +47,7 @@ function SignInView({
         </Button>
       </form>
 
-      <div className="my-5 flex items-center gap-3">
+      <div className="my-4 flex items-center gap-3">
         <div className="h-px flex-1 bg-ink/10" />
         <span className="text-xs text-muted">or continue as</span>
         <div className="h-px flex-1 bg-ink/10" />
@@ -59,7 +59,7 @@ function SignInView({
             key={acc.identifier}
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full border-rose text-rose"
             onClick={() => {
               setIdentifier(acc.identifier);
               setPassword(DEMO_PASSWORD);
@@ -69,7 +69,7 @@ function SignInView({
           </Button>
         ))}
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted">Tapping a role fills in its demo credentials - tap Sign in to continue.</p>
+      <p className="mt-2.5 text-center text-[10px] text-muted">Tapping a role fills in its demo credentials - tap Sign in to continue.</p>
     </>
   );
 }
@@ -79,7 +79,7 @@ function ForgotIdentifierView({ onSent }: { onSent: (identifier: string) => void
   const [error, setError] = useState<string | null>(null);
   return (
     <>
-      <p className="mb-1 font-serif text-lg font-semibold">Forgot password</p>
+      <p className="mb-1 font-serif text-base font-semibold">Forgot password</p>
       <p className="mb-4 text-sm text-muted">Enter your registered email or phone number and we&apos;ll send a one-time code (demo).</p>
       <Label htmlFor="forgotIdentifier">Email or Phone Number</Label>
       <Input id="forgotIdentifier" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="you@example.com or 98XXXXXXXX" />
@@ -113,7 +113,7 @@ function ResetPasswordView({ identifier, onDone }: { identifier: string; onDone:
 
   return (
     <>
-      <p className="mb-1 font-serif text-lg font-semibold">Enter OTP</p>
+      <p className="mb-1 font-serif text-base font-semibold">Enter OTP</p>
       <p className="mb-4 text-sm text-muted">We&apos;ve sent a one-time code to <b>{identifier}</b> (demo - any 4-6 digits work).</p>
       <Label htmlFor="otp">OTP</Label>
       <Input id="otp" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="e.g. 123456" />
@@ -164,16 +164,16 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-blush/40 px-4 py-10">
-      <div className="mb-6 flex items-center gap-2">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose text-white">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-blush p-6">
+      <div className="mb-1.5 flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose text-white">
           <Gift className="h-6 w-6" />
         </div>
-        <span className="text-2xl font-semibold text-ink">Giftly</span>
+        <span className="font-serif text-[22px] font-semibold text-ink">Giftly</span>
       </div>
-      <p className="mb-6 text-center text-muted">Send a little love 💗</p>
+      <p className="mb-5 text-center text-muted">Send a little love</p>
 
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm">
+      <div className="w-full max-w-[340px] rounded-[20px] border border-border bg-white p-3.5 shadow-sm [&_input]:h-10 [&_input]:rounded-xl [&_input]:px-3 [&_input]:text-[13px]">
         {sessionExpired && (
           <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
             Your session ended or you don&apos;t have access to that area. Please sign in again.
@@ -202,13 +202,13 @@ function LoginForm() {
         )}
 
         {view !== "signin" && (
-          <button onClick={() => setView("signin")} className="mt-3 w-full text-center text-sm font-semibold text-ink">
+          <button onClick={() => setView("signin")} className="mt-2 w-full rounded-full border border-rose py-2.5 text-center text-sm font-semibold text-rose">
             ← Back to sign in
           </button>
         )}
       </div>
 
-      <p className="mt-6 max-w-sm text-center text-xs text-muted">
+      <p className="mt-4 max-w-[320px] text-center text-[11px] text-muted">
         Demo application - no real payments or deliveries.
       </p>
     </div>

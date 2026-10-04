@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CustomerShell } from "@/components/CustomerShell";
 import { OrderCard } from "@/components/OrderCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -27,6 +28,7 @@ export default function MyOrdersPage() {
   return (
     <CustomerShell>
       <div className="p-4">
+        <Link href="/" className="mb-3 block text-sm text-rose">← Back to home</Link>
         <h1 className="mb-4 font-serif text-xl font-semibold text-ink">My Orders</h1>
         {!orders && !error && (
           <div className="space-y-3">

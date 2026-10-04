@@ -1,47 +1,38 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Package, ClipboardList, Store as StoreIcon, BarChart3 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, Package, ClipboardList } from "lucide-react";
+import { AccountMenu } from "@/components/AccountMenu";
+import { Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/store/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/store/products", label: "Products", icon: Package },
   { href: "/store/orders", label: "Orders", icon: ClipboardList },
-  { href: "/store/reports", label: "Reports", icon: BarChart3 },
-  { href: "/store/profile", label: "Profile", icon: StoreIcon },
 ];
 
 export function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [newOrders, setNewOrders] = useState(0);
 
   useEffect(() => {
-    fetch("/api/store/dashboard").then((r) => r.ok && r.json()).then((d) => d && setNewOrders(d.newOrders ?? 0));
+    fetch("/api/store/dashboard").then((r) => r.ok && r.json()).then((d) => d && setNewOrders(d.newOrders ?? 0)).catch(() => {});
   }, [pathname]);
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
   return (
-    <div className="min-h-screen bg-blush/20 pb-16">
+    <div className="min-h-screen pb-20">
 
       <div className="flex-1">
-        <div className="flex items-center justify-between border-b border-ink/5 bg-white px-4 py-3">
-          <span className="font-serif font-semibold text-ink">Giftly · Store</span>
-          <button onClick={logout} className="text-sm text-muted">
-            Log out
-          </button>
-        </div>
-        <main className="p-4">{children}</main>
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur-md">
+          <Link href="/store/dashboard" className="flex items-center gap-2 font-serif text-[19px] font-semibold text-ink"><span className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-rose text-white"><Gift className="h-5 w-5" /></span>Giftly</Link>
+          <AccountMenu />
+        </header>
+        <main className="px-4 py-3.5">{children}</main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-phone border-t border-ink/5 bg-white">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-phone border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom,0px)]">
         {NAV.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;

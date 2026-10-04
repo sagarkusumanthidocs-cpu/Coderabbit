@@ -7,8 +7,8 @@ import { ORDER_SEQUENCE, ORDER_STATUS_LABELS } from "@/lib/services/orderStateMa
 export function ActiveOrderCard({ order }: { order: any }) {
   if (!order) {
     return (
-      <section className="flex flex-col items-start justify-center gap-2 rounded-3xl border border-dashed border-border bg-white p-5">
-        <p className="font-serif text-lg font-semibold text-ink">No gifts on the way</p>
+      <section className="flex flex-col items-start justify-center gap-2 rounded-[20px] border border-dashed border-border bg-white p-3.5">
+        <p className="font-serif text-sm font-semibold text-ink">No gifts on the way</p>
         <p className="text-sm text-muted">Once you send a gift, you can track it right here.</p>
       </section>
     );
@@ -16,9 +16,9 @@ export function ActiveOrderCard({ order }: { order: any }) {
   const item = order.items[0];
   const currentIndex = ORDER_SEQUENCE.indexOf(order.status);
   return (
-    <section className="rounded-3xl border border-rose/20 bg-white p-4 shadow-sm">
+    <section className="rounded-[20px] border border-rose/20 bg-white p-3.5 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 font-serif text-lg font-semibold text-ink">
+        <h2 className="flex items-center gap-2 font-serif text-sm font-semibold text-ink">
           <PackageCheck className="h-5 w-5 text-rose" />
           Track your gift
         </h2>
@@ -26,11 +26,11 @@ export function ActiveOrderCard({ order }: { order: any }) {
           {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS]}
         </span>
       </div>
-      <div className="mt-3 flex gap-3">
-        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-blush">
+      <div className="mt-2.5 flex gap-2">
+        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-blush">
           <ImageWithFallback src={item?.product?.imageUrl || ""} alt="" className="h-full w-full object-cover" />
         </div>
-        <div className="min-w-0 flex-1 text-sm">
+        <div className="min-w-0 flex-1 text-xs">
           <p className="truncate font-semibold text-ink">{item?.productName}</p>
           <p className="truncate text-muted">For {order.recipientName}</p>
           <p className="text-muted">
@@ -38,15 +38,15 @@ export function ActiveOrderCard({ order }: { order: any }) {
           </p>
         </div>
       </div>
-      <div className="mt-4 flex gap-1" aria-hidden="true">
+      <div className="mt-2.5 flex gap-1" aria-hidden="true">
         {ORDER_SEQUENCE.map((s, i) => (
           <span
             key={s}
-            className={`h-1.5 flex-1 rounded-full ${i < currentIndex ? "bg-rose" : i === currentIndex ? "animate-pulse bg-rose" : "bg-rose/15"}`}
+            className={`h-[5px] flex-1 rounded-full ${i < currentIndex ? "bg-rose" : i === currentIndex ? "animate-pulse bg-rose" : "bg-rose/15"}`}
           />
         ))}
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-2.5 flex items-center justify-between gap-3">
         <p className="text-sm text-muted">
           Total <span className="font-semibold text-ink">{formatINR(order.total)}</span>
         </p>

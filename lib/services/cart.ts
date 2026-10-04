@@ -4,7 +4,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/api-errors"
 import { Prisma } from "@prisma/client";
 
 const CART_INCLUDE = {
-  product: { include: { store: true } },
+  product: { include: { store: { include: { city: true } } } },
 } satisfies Prisma.CartItemInclude;
 
 type CartItemWithProduct = Prisma.CartItemGetPayload<{ include: typeof CART_INCLUDE }>;
@@ -28,34 +28,33 @@ export async function getCart(customerId: string) {
  * Adds a product to the customer's cart. Enforces the single-store-per-cart
  * rule: if the cart already has items from a different store, this throws a
  * ConflictError rather than silently mixing stores into one order - the
- * caller (UI) should prompt the user to clear the cart first.
+ * caller (UI) must obtain confirmation before retrying with replaceExisting.
  */
-export async function addToCart(customerId: string, productId: string, quantity: number) {
+export async function addToCart(customerId: string, productId: string, quantity: number, replaceExisting = false) {
   const db = getDb();
-  const product = await db.product.findUnique({ where: { id: productId }, include: { store: true } });
-  if (!product) throw new NotFoundError("This product could not be found.");
-  if (product.isArchived || !product.isAvailable) {
-    throw new ValidationError("This product is no longer available.");
-  }
+  return db.$transaction(async (tx) => {
+    // Serialize additions for a customer, including simultaneous requests into an empty cart.
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${customerId} FOR UPDATE`;
+    const product = await tx.product.findUnique({ where: { id: productId }, include: { store: { include: { city: true } } } });
+    if (!product) throw new NotFoundError("This product could not be found.");
+    if (product.isArchived || !product.isAvailable) throw new ValidationError("This product is no longer available.");
+    if (!product.store.isOpen || product.store.moderationStatus === "BLOCKED") throw new ValidationError("This store is not accepting orders right now.");
 
-  const existingItemsInclude = { product: true } satisfies Prisma.CartItemInclude;
-  type ExistingCartItem = Prisma.CartItemGetPayload<{ include: typeof existingItemsInclude }>;
-  const existingItems = await db.cartItem.findMany({ where: { customerId }, include: existingItemsInclude });
-  const currentStoreId = existingItems[0]?.product.storeId;
-  if (currentStoreId && currentStoreId !== product.storeId) {
-    throw new ConflictError(
-      "Your cart has items from a different store. Clear your cart before adding items from another store."
-    );
-  }
-
-  const existing = existingItems.find((it: ExistingCartItem) => it.productId === productId);
-  const newQuantity = Math.min(10, (existing?.quantity ?? 0) + quantity);
-
-  return db.cartItem.upsert({
-    where: { customerId_productId: { customerId, productId } },
-    update: { quantity: newQuantity },
-    create: { customerId, productId, quantity: Math.min(10, quantity) },
-    include: CART_INCLUDE,
+    const existingItems = await tx.cartItem.findMany({ where: { customerId }, include: { product: true } });
+    const differentStore = existingItems.some((item) => item.product.storeId !== product.storeId);
+    if (differentStore && !replaceExisting) {
+      throw new ConflictError("Your cart already has gifts from another store. Would you like to clear the cart and add this item instead?");
+    }
+    // Validation and replacement share a transaction, so a failed addition keeps the old cart.
+    if (differentStore) await tx.cartItem.deleteMany({ where: { customerId } });
+    const existing = differentStore ? undefined : existingItems.find((item) => item.productId === productId);
+    const newQuantity = Math.min(10, (existing?.quantity ?? 0) + quantity);
+    return tx.cartItem.upsert({
+      where: { customerId_productId: { customerId, productId } },
+      update: { quantity: newQuantity },
+      create: { customerId, productId, quantity: Math.min(10, quantity) },
+      include: CART_INCLUDE,
+    });
   });
 }
 

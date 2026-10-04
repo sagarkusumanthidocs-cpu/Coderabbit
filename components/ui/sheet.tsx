@@ -8,7 +8,7 @@ export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
 export const SheetClose = DialogPrimitive.Close;
 
-export function SheetContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+export function SheetContent({ className, children, hideHandle, ...props }: React.ComponentProps<typeof DialogPrimitive.Content> & { hideHandle?: boolean }) {
   return (
     <DialogPrimitive.Portal container={getAppScreen()}>
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in" />
@@ -20,7 +20,7 @@ export function SheetContent({ className, children, ...props }: React.ComponentP
         )}
         {...props}
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 flex-shrink-0 rounded-full bg-border" />
+        {!hideHandle && <div className="mx-auto mb-3 h-1.5 w-10 flex-shrink-0 rounded-full bg-border" />}
         {children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

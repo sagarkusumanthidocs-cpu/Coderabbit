@@ -82,7 +82,7 @@ export const giftSchema = z.object({
 
 export const deliveryOptionEnum = z.enum(["STANDARD", "EXPRESS", "SCHEDULED"]);
 export const deliverySlotEnum = z.enum(["MORNING", "AFTERNOON", "EVENING"]);
-export const paymentMethodEnum = z.enum(["COD", "UPI_MOCK"]);
+export const paymentMethodEnum = z.enum(["UPI_MOCK", "CARD_MOCK"]);
 
 export const deliverySchema = z
   .object({
@@ -189,6 +189,7 @@ export const adminOverrideSchema = z.object({
 });
 
 export const addToCartSchema = z.object({
+  replaceExisting: z.boolean().optional().default(false),
   productId: z.string().min(1),
   quantity: z.number().int().min(1).max(10).default(1),
 });

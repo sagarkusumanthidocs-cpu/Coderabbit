@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { ErrorState } from "@/components/ErrorState";
+import { useShoppingCart } from "@/lib/hooks/useShoppingCart";
 import { useCity } from "@/lib/hooks/useCity";
 import { formatINR } from "@/lib/utils";
 import { Minus, Plus, MapPin, Store as StoreIcon, Info } from "lucide-react";
@@ -20,8 +21,8 @@ export default function ProductDetailPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [cartError, setCartError] = useState<string | null>(null);
+  const cart = useShoppingCart();
+  const { busy: addingToCart, error: cartError } = cart;
   const [addedToCart, setAddedToCart] = useState(false);
   const { cityId } = useCity([]); // just read stored preference
 
@@ -71,53 +72,20 @@ export default function ProductDetailPage() {
   else if (storeClosed) disabledReason = "This store is closed right now.";
   else if (cityMismatch) disabledReason = `This product delivers in ${product.store.city.name}, not your selected city.`;
 
-  async function addToCart(clearFirst = false) {
-    if (disabledReason) return;
-    setAddingToCart(true);
-    setCartError(null);
-    try {
-      if (clearFirst) await fetch("/api/cart", { method: "DELETE" });
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, quantity }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        if (res.status === 409) {
-          setCartError(body.message ?? "Your cart has items from another store.");
-        } else {
-          setCartError(body.message ?? "Could not add this to your cart.");
-        }
-        return;
-      }
-      window.dispatchEvent(new Event("giftly-cart-updated"));
-      setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2000);
-    } catch {
-      setCartError("Could not add this to your cart. Please try again.");
-    } finally {
-      setAddingToCart(false);
-    }
+  function addToCart() {
+    if (!disabledReason) cart.add(product.id, quantity, () => setAddedToCart(true));
   }
-
   function goToCheckout() {
-    if (disabledReason) return;
-    const params = new URLSearchParams({
-      productId: product.id,
-      quantity: String(quantity),
-      cityId: product.store.cityId,
-    });
-    router.push(`/checkout?${params.toString()}`);
+    if (!disabledReason) cart.add(product.id, quantity, () => router.push("/checkout"));
   }
 
   return (
     <CustomerShell>
       <div className="pb-28">
-        <div className="relative aspect-square w-full bg-blush">
+        <div className="px-4 pt-4"><Link href="/" className="mb-3 block text-sm text-rose">← Back</Link><div className="relative h-[180px] overflow-hidden rounded-2xl bg-blush">
           <ImageWithFallback src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
         </div>
-        <div className="p-4">
+        </div><div className="p-4">
           <div className="mb-2 flex items-center gap-2">
             <Badge className="bg-blush text-ink">
               <MapPin className="h-3 w-3" /> {product.store.city.name}
@@ -177,9 +145,7 @@ export default function ProductDetailPage() {
           {cartError && (
             <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
               {cartError}{" "}
-              <button className="font-medium underline" onClick={() => addToCart(true)}>
-                Clear cart &amp; add this instead
-              </button>
+
             </div>
           )}
         </div>
@@ -191,14 +157,15 @@ export default function ProductDetailPage() {
           className="flex-1"
           size="lg"
           disabled={!!disabledReason || addingToCart}
-          onClick={() => addToCart(false)}
+          onClick={addToCart}
         >
           {addedToCart ? "✓ Added" : "Add to Cart"}
         </Button>
-        <Button className="flex-1" size="lg" disabled={!!disabledReason} onClick={goToCheckout}>
-          Buy Now · {formatINR(Number(product.price) * quantity)}
+        <Button className="flex-1" size="lg" disabled={!!disabledReason || addingToCart} onClick={goToCheckout}>
+          Send this gift · {formatINR(Number(product.price) * quantity + 49)}
         </Button>
       </div>
+      {cart.confirmation}
     </CustomerShell>
   );
 }

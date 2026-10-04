@@ -300,7 +300,7 @@ export async function listOrdersForCustomer(customerId: string) {
   const db = getDb();
   return db.order.findMany({
     where: { customerId },
-    include: ORDER_INCLUDE,
+    include: { ...ORDER_INCLUDE, items: { include: { product: { select: { imageUrl: true } } } } },
     orderBy: { placedAt: "desc" },
   });
 }
@@ -376,7 +376,7 @@ export async function listOrdersForAdmin(filters: { status?: OrderStatus; cityId
       storeId: filters.storeId,
       orderCode: filters.orderCode ? { contains: filters.orderCode, mode: "insensitive" } : undefined,
     },
-    include: ORDER_INCLUDE,
+    include: { ...ORDER_INCLUDE, items: { include: { product: { select: { imageUrl: true } } } } },
     orderBy: { placedAt: "desc" },
   });
 }

@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { FilterTabs } from "@/components/FilterTabs";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ function Toggle({ checked, onChange, disabled, label }: { checked: boolean; onCh
 }
 
 export default function StoreProductsPage() {
+  const [tab, setTab] = useState("items");
   const [products, setProducts] = useState<any[] | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +150,7 @@ export default function StoreProductsPage() {
 
   return (
     <StoreShell>
+      <Link href="/store/dashboard" className="mb-3 block text-sm text-rose">← Back</Link>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="font-serif text-xl font-semibold text-ink">Products</h1>
         <Button onClick={openAdd}>
@@ -154,6 +158,8 @@ export default function StoreProductsPage() {
         </Button>
       </div>
 
+      <FilterTabs label="Menu sections" value={tab} onChange={setTab} options={[{ value: "items", label: "All items" }, { value: "addons", label: "Add-ons" }]} />
+      {tab === "addons" ? <EmptyState title="Add-ons coming soon" description="Gift wrap and add-on items are not part of this MVP yet." /> : <>
       {error && <ErrorState message={error} onRetry={load} />}
       {!products && !error && (
         <div className="space-y-3">
@@ -187,7 +193,8 @@ export default function StoreProductsPage() {
                   <ImageWithFallback src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-ink">{p.name}</p>
+                  <p className="truncate text-[13px] font-semibold text-ink">{p.name}</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-muted">{p.description}</p>
                   <p className="text-sm text-rose">{formatINR(p.price)}</p>
                   <div className="mt-1 flex gap-1">
                     {p.isFeatured && <Badge className="bg-rose text-white">Featured</Badge>}
@@ -228,6 +235,7 @@ export default function StoreProductsPage() {
         </div>
       )}
 
+      </>}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {dialogOpen && (
           <DialogContent className="max-h-[85vh] overflow-y-auto">

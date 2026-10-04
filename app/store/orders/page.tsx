@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
 import { StoreShell } from "@/components/StoreShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +14,8 @@ import { formatINR } from "@/lib/utils";
 
 const TABS = [
   { key: "new", label: "New", statuses: ["ORDER_PLACED"] },
-  { key: "in_progress", label: "In progress", statuses: ["STORE_ACCEPTED", "PREPARING_GIFT", "READY_FOR_PICKUP", "OUT_FOR_DELIVERY"] },
+  { key: "in_progress", label: "Preparing", statuses: ["STORE_ACCEPTED", "PREPARING_GIFT"] },
+  { key: "ready", label: "Ready", statuses: ["READY_FOR_PICKUP", "OUT_FOR_DELIVERY"] },
   { key: "completed", label: "Completed", statuses: ["DELIVERED"] },
   { key: "rejected", label: "Rejected", statuses: ["REJECTED"] },
 ];
@@ -28,6 +31,8 @@ function elapsedLabel(since: string, now: number) {
 }
 
 export default function StoreOrdersPage() {
+  const [store, setStore] = useState<any>(null);
+  const [toggling, setToggling] = useState(false);
   const [orders, setOrders] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState("new");
@@ -39,12 +44,13 @@ export default function StoreOrdersPage() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load orders.");
         return r.json();
       })
-      .then((d) => setOrders(d.orders))
+      .then((d) => { setOrders(d.orders); setError(null); })
       .catch((e) => setError(e.message));
   }
 
   useEffect(() => {
     load();
+    fetch("/api/store/profile").then((r) => r.json()).then((d) => setStore(d.store)).catch(() => {});
     const id = setInterval(load, 15000);
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => {
@@ -52,6 +58,21 @@ export default function StoreOrdersPage() {
       clearInterval(tick);
     };
   }, []);
+
+  async function toggleOpen() {
+    if (!store || toggling) return;
+    setToggling(true);
+    try {
+      const res = await fetch("/api/store/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isOpen: !store.isOpen }) });
+      if (!res.ok) throw new Error((await res.json()).message ?? "Could not update store.");
+      setStore({ ...store, isOpen: !store.isOpen });
+    } catch (e: any) { setError(e.message); } finally { setToggling(false); }
+  }
+  async function transition(order: any, targetStatus: string, reason?: string) {
+    const res = await fetch(`/api/store/orders/${order.id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetStatus, expectedVersion: order.version, reason }) });
+    if (!res.ok) throw new Error((await res.json()).message ?? "Could not update order.");
+    load();
+  }
 
   const filtered = useMemo(() => {
     if (!orders) return [];
@@ -61,12 +82,12 @@ export default function StoreOrdersPage() {
 
   return (
     <StoreShell>
-      <h1 className="mb-4 font-serif text-xl font-semibold text-ink">Orders</h1>
+      <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-3"><Link href="/store/dashboard" aria-label="Back to dashboard">←</Link><h1 className="font-serif text-xl font-semibold text-ink">Orders</h1></div>{store && <Button size="sm" variant="secondary" disabled={toggling} onClick={toggleOpen}>{store.isOpen ? "● Online" : "● Offline"}</Button>}</div>
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="flex w-full overflow-x-auto rounded-full">
           {TABS.map((t) => (
-            <TabsTrigger key={t.key} value={t.key}>
-              {t.label}
+            <TabsTrigger key={t.key} value={t.key} className="shrink-0 whitespace-nowrap rounded-full px-3 text-xs">
+              {t.label} ({orders?.filter((order) => t.statuses.includes(order.status)).length ?? 0})
             </TabsTrigger>
           ))}
         </TabsList>
@@ -84,8 +105,8 @@ export default function StoreOrdersPage() {
                 ? o.statusHistory?.find((h: any) => h.status === "STORE_ACCEPTED")?.changedAt
                 : null;
               return (
-              <Link key={o.id} href={`/store/orders/${o.id}`}>
-                <Card className="transition hover:shadow-md">
+              <Card key={o.id} className="overflow-hidden"><Link className="block" href={`/store/orders/${o.id}`}>
+                <div className="transition hover:shadow-md">
                   <CardContent className="flex items-center justify-between">
                     <div>
                       {totalQty >= 3 && (
@@ -112,8 +133,11 @@ export default function StoreOrdersPage() {
                       <p className="font-semibold text-ink">{formatINR(o.total)}</p>
                     </div>
                   </CardContent>
-                </Card>
+                </div>
               </Link>
+              <div className="mx-4 border-t border-border py-2"><p className="text-[11px] font-semibold uppercase text-muted">🧺 Order details · {totalQty} items</p>{o.items.map((item: any) => <p key={item.id} className="mt-1 text-xs">{item.quantity} × {item.productName}</p>)}<p className="mt-2 rounded-xl bg-blush p-2 text-[11px]">🚚 {o.deliveryOption === "EXPRESS" ? "Same-day express" : o.deliveryOption === "SCHEDULED" ? "Scheduled delivery" : "Standard delivery"}{o.giftMessage && " · 💌 Gift message included"}</p></div>
+              {o.status === "ORDER_PLACED" && <div className="flex justify-end gap-2 px-4 pb-3"><ConfirmDialog trigger={<Button size="sm" variant="destructive">✕ Reject</Button>} title="Reject this order" requireReason destructive onConfirm={(reason) => transition(o, "REJECTED", reason)} /><ConfirmDialog trigger={<Button size="sm">✓ Accept</Button>} title="Accept this order?" onConfirm={() => transition(o, "STORE_ACCEPTED")} /></div>}
+              </Card>
               );
             })}
           </div>

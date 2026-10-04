@@ -62,14 +62,17 @@ All demo accounts use the password **`Demo@1234`**.
 
 | Role | Email | Notes |
 |---|---|---|
-| Customer | `customer@giftapp.demo` | Has seeded orders GF-1001, 1002, 1003 |
-| Customer | `customer2@giftapp.demo` | Second customer, for access-isolation testing |
+| Customer | `customer@giftapp.demo` | Order history, 3 reminders and 2 group gifts |
+| Customer | `customer2@giftapp.demo` | Separate orders, 3 reminders and 2 group gifts |
 | Store Owner | `store@giftapp.demo` | Owns **Petals & Co.** (Hyderabad) — has a pending order |
 | Store Owner | `cakecraft@giftapp.demo` | Owns **CakeCraft** (Hyderabad) |
 | Store Owner | `giftstudio@giftapp.demo` | Owns **The Gift Studio** (Hyderabad) |
 | Store Owner | `bloom@giftapp.demo` | Owns **Bloom & Co.** (Hyderabad) |
 | Store Owner | `cakecraft.blr@giftapp.demo` | Owns **CakeCraft** (Bengaluru) — demonstrates city filtering |
-| Admin | `admin@giftapp.demo` | Platform-wide visibility and overrides |
+| Store Owner | `teststore2@giftapp.demo` | Owns **Petals Bengaluru** (Bengaluru) |
+| Store Owner | `customcreations@giftapp.demo` | Owns **Custom Creations** (Hyderabad) |
+| Store Owner | `greenthumb@giftapp.demo` | Owns **Green Thumb Nursery** (Bengaluru) |
+| Admin | `admin@giftapp.demo` | Platform-wide orders, revenue, rejection analytics and users |
 
 The `/login` page also has one-tap "Use demo Customer / Store Owner / Admin" buttons.
 
@@ -94,6 +97,27 @@ second tab logging in as a different role will replace the first tab's session t
   fabricated timestamps are ever written to the database.
 - Editing a product never changes past orders: `OrderItem` snapshots `productName` and
   `unitPrice` at the moment the order is placed.
+
+### Populating the demo
+
+Run `npm run db:seed` after migrations against the database used by the app. A fresh
+seed includes 11 demo accounts, 8 stores, 41 products, 70 orders, 6 reminders and 4
+group gifts. Every store owner has new, active, delivered and rejected orders;
+customer group gifts show both partial and complete funding. Prices, delivery fees,
+contribution totals and tracking histories agree with the application rules.
+
+Photos are bundled under `public/images/demo/` with source credits in that folder.
+Images load from your deployment rather than a third-party image server. The data is
+synthetic and uses the existing demo accounts; no real payments or deliveries occur.
+
+The seed creates missing demo records and preserves existing orders, contributions,
+reminders, passwords and catalogue edits when rerun. Original seed photo URLs are
+upgraded to bundled images. Dates are relative to the first seed run and are not
+reset on later runs. Use the dev reset below only for a disposable local database.
+
+**Existing Vercel deployment:** deploying code does not populate its database.
+Run `npm run db:seed` once with that deployment's database environment variables,
+after migrations. Do not add seeding to the build or run a reset on the deployed database.
 
 ### Resetting local data
 
@@ -190,3 +214,34 @@ Everything below was actually run, not assumed:
 
 No deployment or GitHub repository URL is claimed here, since creating those requires your
 own GitHub/Vercel/Neon accounts — the steps above are exact and ready to follow.
+
+### HTML reference alignment
+
+`public/prototype.html` remains the design reference. Customer browsing now uses
+circular featured gifts, square store cards, full store pages, product quick views,
+store filters, quantity controls, and a separate cart summary and shared checkout.
+Adding a gift from another store asks **“Would you like to clear the cart?”** with
+Cancel and Clear cart & add actions. The server validates and replaces the cart in
+one transaction; unavailable gifts cannot erase the existing cart.
+
+Reminder recurrence, lead time, preferred category and notes are editable. Group
+gifts use the same checkout, and store/admin screens include the reference's
+search, filters, photos, order queue actions and performance summaries. Existing
+moderation, archiving, delivery validation and demo data remain supported.
+
+Apply migrations with `npm run db:migrate` before running the updated application.
+The new migration adds `CARD_MOCK` for the prototype's credit-card payment choice;
+it does not collect card details or process a real payment. New checkouts accept only mock Card and UPI payments.
+Historical payment records remain readable. Seeding mock data remains an explicit, separate step.
+
+### Reference layout and payment choices
+
+The application follows the HTML reference's centered 480px layout on desktop
+and fills the available width on phones. The sign-in card, customer header,
+profile menu and bottom navigation follow the same layout. Store Reports and
+Store profile remain available from the dashboard and account menu; admin Users
+is available from the account menu.
+
+Checkout offers **UPI** and **Credit Card** only. Both are mock payments; no money
+is collected. Both checkout APIs reject Pay on Delivery requests. New demo seeds
+also use only Card and UPI; existing historical order payment records are retained.

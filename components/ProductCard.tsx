@@ -56,7 +56,7 @@ export function ProductCard({
   return (
     <Link href={`/products/${id}`} className="group relative block">
       <article className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-        <div className="relative aspect-square w-full overflow-hidden bg-blush">
+        <div className="relative h-[110px] w-full overflow-hidden bg-blush">
           <ImageWithFallback
             src={imageUrl}
             alt={name}
@@ -77,9 +77,9 @@ export function ProductCard({
           )}
         </div>
         <div className="p-3">
-          <p className="truncate text-sm font-semibold text-ink">{name}</p>
-          <p className="truncate text-xs text-muted">{storeName}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+          <p className="truncate text-xs font-semibold text-ink">{name}</p>
+          <p className="truncate text-[11px] text-muted">{storeName}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted">
             <span className="flex items-center gap-0.5 font-medium text-ink">
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
               {rating.toFixed(1)}
@@ -91,7 +91,7 @@ export function ProductCard({
               {delivery}
             </span>
           </div>
-          <p className="mt-1 font-semibold text-rose">{formatINR(price)}</p>
+          <p className="mt-1 text-[13px] font-semibold text-rose">{formatINR(price)}</p>
         </div>
       </article>
     </Link>
