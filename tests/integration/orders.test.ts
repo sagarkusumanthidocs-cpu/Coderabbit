@@ -9,6 +9,7 @@ import {
   transitionOrderAsStoreOwner,
   transitionOrderAsAdmin,
   getOrderForStore,
+  listOrdersForStoreOwner,
   confirmDeliveryByCustomer,
 } from "@/lib/services/orders";
 import { listAllStores, getStoreDetail, getAdminDashboard } from "@/lib/services/admin";
@@ -358,6 +359,10 @@ describe("customer delivery confirmation", () => {
     const order = await createOrder({ customerId, input: baseCheckoutInput() });
     await transitionOrderAsAdmin({ orderId: order.id, adminUserId: adminId, targetStatus: "DELIVERED", reason: "fast-forward for test", expectedVersion: order.version });
 
+    const pending = await getOrderForStore(order.id, storeOwnerId);
+    expect(pending.deliveryConfirmedByCustomer).toBe(false);
+    expect(pending.proofImage).toBeNull();
+
     const confirmed = await confirmDeliveryByCustomer(order.id, customerId, "data:image/jpeg;base64,/9j/fakebytes");
     expect(confirmed.deliveryConfirmedByCustomer).toBe(true);
     expect(confirmed.proofImage).toBe("data:image/jpeg;base64,/9j/fakebytes");
@@ -365,6 +370,16 @@ describe("customer delivery confirmation", () => {
     const history = await db.orderStatusHistory.findMany({ where: { orderId: order.id }, orderBy: { changedAt: "desc" } });
     expect(history[0].note).toBe("Confirmed by customer with photo");
     expect(history[0].changedByRole).toBe("CUSTOMER");
+
+    const storeDetail = await getOrderForStore(order.id, storeOwnerId);
+    expect(storeDetail.status).toBe("DELIVERED");
+    expect(storeDetail.deliveryConfirmedByCustomer).toBe(true);
+    expect(storeDetail.proofImage).toBe(confirmed.proofImage);
+    expect(storeDetail.statusHistory.some((entry) => entry.changedByRole === "CUSTOMER" && entry.note === "Confirmed by customer with photo")).toBe(true);
+    const storeList = await listOrdersForStoreOwner(storeOwnerId);
+    expect(storeList.find((entry) => entry.id === order.id)?.deliveryConfirmedByCustomer).toBe(true);
+    await expect(getOrderForStore(order.id, otherStoreOwnerId)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await listOrdersForStoreOwner(otherStoreOwnerId)).some((entry) => entry.id === order.id)).toBe(false);
   });
 
   it("refuses to confirm an order that isn't Delivered yet", async () => {

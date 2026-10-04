@@ -162,6 +162,7 @@ export default function StoreDashboardPage() {
             storeName={data.store.name}
             placedAt={o.placedAt}
             status={o.status}
+            deliveryConfirmedByCustomer={o.deliveryConfirmedByCustomer}
             total={o.total}
             trackHref={`/store/orders/${o.id}`}
           />

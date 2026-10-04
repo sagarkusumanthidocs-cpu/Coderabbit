@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
+import { DeliveryConfirmationBadge } from "@/components/DeliveryConfirmationBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RecipientSummary } from "@/components/RecipientSummary";
 import { GiftMessagePreview } from "@/components/GiftMessagePreview";
@@ -21,8 +22,8 @@ export default function StoreOrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  function load() {
-    fetch(`/api/store/orders/${params.id}`)
+  const load = useCallback(() => {
+    fetch(`/api/store/orders/${params.id}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).message ?? "Order not found.");
         return r.json();
@@ -32,9 +33,14 @@ export default function StoreOrderDetailPage() {
         setError(null);
       })
       .catch((e) => setError(e.message));
-  }
+  }, [params.id]);
 
-  useEffect(load, [params.id]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 15000);
+    window.addEventListener("focus", load);
+    return () => { clearInterval(interval); window.removeEventListener("focus", load); };
+  }, [load]);
 
   async function transition(targetStatus: string, reason?: string) {
     setActionError(null);
@@ -52,7 +58,7 @@ export default function StoreOrderDetailPage() {
     setOrder(data.order);
   }
 
-  if (error) {
+  if (error && !order) {
     return (
       <StoreShell>
         <ErrorState message={error} onRetry={load} />
@@ -81,8 +87,10 @@ export default function StoreOrderDetailPage() {
           <p className="text-xs text-muted">{order.orderCode}</p>
           <StatusBadge status={order.status} />
         </div>
+        <Button size="sm" variant="outline" onClick={load}>Refresh</Button>
       </div>
 
+      {error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
       {actionError && <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
 
       <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -112,6 +120,21 @@ export default function StoreOrderDetailPage() {
         </div>
         <PriceSummary subtotal={order.subtotal} deliveryFee={order.deliveryFee} total={order.total} />
       </div>
+
+      {order.status === "DELIVERED" && (
+        <section className="mt-4 rounded-2xl border border-border bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold">Customer delivery confirmation</h2>
+          <DeliveryConfirmationBadge confirmed={order.deliveryConfirmedByCustomer} />
+          {order.deliveryConfirmedByCustomer ? <>
+            <p className="mt-2 text-sm text-muted">The customer confirmed receipt of this order with a photo.</p>
+            {order.statusHistory.filter((entry: any) => entry.status === "DELIVERED" && entry.changedByRole === "CUSTOMER").slice(-1).map((entry: any) => <p key={entry.id} className="mt-1 text-xs text-muted">Confirmed on {formatKolkata(new Date(entry.changedAt))}</p>)}
+            {order.proofImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={order.proofImage} alt="Customer delivery confirmation photo" className="mt-3 max-h-80 w-full rounded-xl object-contain" />
+            )}
+          </> : <p className="mt-2 text-sm text-muted">Delivery is recorded. The customer still needs to upload a photo and confirm receipt.</p>}
+        </section>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {canAccept && (

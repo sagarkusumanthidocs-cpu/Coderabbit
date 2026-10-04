@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { DeliveryConfirmationBadge } from "@/components/DeliveryConfirmationBadge";
+import { FilterTabs } from "@/components/FilterTabs";
 import { StoreShell } from "@/components/StoreShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +37,7 @@ export default function StoreOrdersPage() {
   const [toggling, setToggling] = useState(false);
   const [orders, setOrders] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState("all");
   const [tab, setTab] = useState("new");
   const [now, setNow] = useState(() => Date.now());
 
@@ -52,9 +55,11 @@ export default function StoreOrdersPage() {
     load();
     fetch("/api/store/profile").then((r) => r.json()).then((d) => setStore(d.store)).catch(() => {});
     const id = setInterval(load, 15000);
+    window.addEventListener("focus", load);
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearInterval(id);
+      window.removeEventListener("focus", load);
       clearInterval(tick);
     };
   }, []);
@@ -77,8 +82,9 @@ export default function StoreOrdersPage() {
   const filtered = useMemo(() => {
     if (!orders) return [];
     const statuses = TABS.find((t) => t.key === tab)?.statuses ?? [];
-    return orders.filter((o) => statuses.includes(o.status));
-  }, [orders, tab]);
+    return orders.filter((o) => statuses.includes(o.status) && (tab !== "completed" || confirmation === "all" || o.deliveryConfirmedByCustomer === (confirmation === "confirmed")));
+  }, [orders, tab, confirmation]);
+  const delivered = (orders ?? []).filter((order) => order.status === "DELIVERED");
 
   return (
     <StoreShell>
@@ -92,6 +98,11 @@ export default function StoreOrdersPage() {
           ))}
         </TabsList>
       </Tabs>
+      {tab === "completed" && <FilterTabs label="Customer delivery confirmation" value={confirmation} onChange={setConfirmation} options={[
+        { value: "all", label: "All delivered", count: delivered.length },
+        { value: "pending", label: "Awaiting photo", count: delivered.filter((order) => !order.deliveryConfirmedByCustomer).length },
+        { value: "confirmed", label: "Customer confirmed", count: delivered.filter((order) => order.deliveryConfirmedByCustomer).length },
+      ]} />}
 
       <div className="mt-4">
         {error && <ErrorState message={error} onRetry={load} />}
@@ -134,6 +145,7 @@ export default function StoreOrdersPage() {
                     </div>
                   </CardContent>
                 </div>
+              {o.status === "DELIVERED" && <div className="px-4 pb-3"><DeliveryConfirmationBadge confirmed={o.deliveryConfirmedByCustomer} /></div>}
               </Link>
               <div className="mx-4 border-t border-border py-2"><p className="text-[11px] font-semibold uppercase text-muted">🧺 Order details · {totalQty} items</p>{o.items.map((item: any) => <p key={item.id} className="mt-1 text-xs">{item.quantity} × {item.productName}</p>)}<p className="mt-2 rounded-xl bg-blush p-2 text-[11px]">🚚 {o.deliveryOption === "EXPRESS" ? "Same-day express" : o.deliveryOption === "SCHEDULED" ? "Scheduled delivery" : "Standard delivery"}{o.giftMessage && " · 💌 Gift message included"}</p></div>
               {o.status === "ORDER_PLACED" && <div className="flex justify-end gap-2 px-4 pb-3"><ConfirmDialog trigger={<Button size="sm" variant="destructive">✕ Reject</Button>} title="Reject this order" requireReason destructive onConfirm={(reason) => transition(o, "REJECTED", reason)} /><ConfirmDialog trigger={<Button size="sm">✓ Accept</Button>} title="Accept this order?" onConfirm={() => transition(o, "STORE_ACCEPTED")} /></div>}
