@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CustomerShell } from "@/components/CustomerShell";
 import { CitySelector } from "@/components/CitySelector";
@@ -16,10 +16,12 @@ import { Search } from "lucide-react";
 function ProductsInner() {
   const router = useRouter();
   const sp = useSearchParams();
+  const [reloadKey, setReloadKey] = useState(0);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const { cityId, setCityId } = useCity(cities);
   const { isFavorite, toggleFavorite } = useFavorites();
   const [query, setQuery] = useState(sp.get("q") ?? "");
+  const [searchQuery, setSearchQuery] = useState(sp.get("q") ?? "");
   const [category, setCategory] = useState(sp.get("category") ?? "");
   const [sort, setSort] = useState(sp.get("sort") ?? "newest");
   const [categories, setCategories] = useState<any[]>([]);
@@ -28,9 +30,15 @@ function ProductsInner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/cities").then((r) => r.json()).then((d) => setCities(d.cities ?? []));
+    fetch("/api/cities").then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).message ?? "Could not load cities.");
+      return r.json();
+    }).then((d) => {
+      setCities(d.cities ?? []);
+      if (!d.cities?.length) { setError("No delivery cities are available yet."); setLoading(false); }
+    }).catch((e) => { setError(e.message); setLoading(false); });
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(d.categories ?? []));
-  }, []);
+  }, [reloadKey]);
 
   useEffect(() => {
     const urlCityId = sp.get("cityId");
@@ -38,13 +46,13 @@ function ProductsInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function load() {
+  const load = useCallback(() => {
     if (!cityId) return;
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({ cityId });
     if (category) params.set("category", category);
-    if (query) params.set("q", query);
+    if (searchQuery) params.set("q", searchQuery);
     if (sort) params.set("sort", sort);
     fetch(`/api/products?${params.toString()}`)
       .then(async (r) => {
@@ -54,17 +62,19 @@ function ProductsInner() {
       .then((d) => setProducts(d.products))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }
+  }, [cityId, category, sort, searchQuery]);
 
-  useEffect(load, [cityId, category, sort]);
+  useEffect(load, [load]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    load();
+    setSearchQuery(query);
+    if (query === searchQuery) load();
   }
 
   function clearFilters() {
     setQuery("");
+    setSearchQuery("");
     setCategory("");
     setSort("newest");
   }
@@ -96,7 +106,7 @@ function ProductsInner() {
 
         <div className="mt-5">
           {loading && <LoadingGrid count={6} />}
-          {!loading && error && <ErrorState message={error} onRetry={load} />}
+          {!loading && error && <ErrorState message={error} onRetry={() => { setReloadKey((key) => key + 1); load(); }} />}
           {!loading && !error && products && products.length === 0 && (
             <EmptyState
               title="No gifts found"

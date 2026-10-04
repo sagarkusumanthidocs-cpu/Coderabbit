@@ -38,6 +38,7 @@ export default function RemindersPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function load() {
@@ -56,6 +57,7 @@ export default function RemindersPage() {
     setEditingId(null);
     setForm(emptyForm);
     setFieldErrors({});
+    setSaveError(null);
     setShowForm(true);
   }
   function openEdit(r: Reminder) {
@@ -70,12 +72,14 @@ export default function RemindersPage() {
       note: r.note ?? "",
     });
     setFieldErrors({});
+    setSaveError(null);
     setShowForm(true);
   }
 
   async function save() {
     setSaving(true);
     setFieldErrors({});
+    setSaveError(null);
     const url = editingId ? `/api/reminders/${editingId}` : "/api/reminders";
     const method = editingId ? "PATCH" : "POST";
     try {
@@ -83,11 +87,14 @@ export default function RemindersPage() {
       const data = await res.json();
       if (!res.ok) {
         setFieldErrors(data.details ?? {});
+        setSaveError(data.message ?? "Could not save the reminder.");
         setSaving(false);
         return;
       }
       setShowForm(false);
       load();
+    } catch {
+      setSaveError("Could not save the reminder. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -95,8 +102,11 @@ export default function RemindersPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this reminder? This can't be undone.")) return;
-    await fetch(`/api/reminders/${id}`, { method: "DELETE" });
-    load();
+    try {
+      const res = await fetch(`/api/reminders/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).message ?? "Could not delete this reminder.");
+      load();
+    } catch (e: any) { setError(e.message ?? "Please try again."); }
   }
 
   return (
@@ -138,7 +148,7 @@ export default function RemindersPage() {
 
         {showForm && (
           <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={() => setShowForm(false)}>
-            <div className="w-full max-w-md rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="max-h-full w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
               <h2 className="mb-3 font-serif text-lg font-semibold">{editingId ? "Edit Reminder" : "Add Reminder"}</h2>
 
               <label className="mb-1 block text-sm font-medium">Occasion Name</label>
@@ -167,6 +177,7 @@ export default function RemindersPage() {
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               {fieldErrors.date && <p className="mt-1 text-xs text-red-600">{fieldErrors.date[0]}</p>}
 
+              {saveError && <p role="alert" className="mt-2 text-sm text-red-600">{saveError}</p>}
               <div className="mt-4 flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancel</Button>
                 <Button className="flex-1" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>

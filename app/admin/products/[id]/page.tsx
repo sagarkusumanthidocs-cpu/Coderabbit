@@ -13,6 +13,8 @@ export default function AdminProductDetailPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", price: "", isFeatured: false });
 
@@ -41,13 +43,26 @@ export default function AdminProductDetailPage() {
   }
 
   async function saveEdit() {
-    await fetch(`/api/admin/products/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, description: form.description, price: Number(form.price), isFeatured: form.isFeatured }),
-    });
-    setEditing(false);
-    load();
+    setSaving(true);
+    setFormError(null);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, description: form.description, price: Number(form.price), isFeatured: form.isFeatured }),
+      });
+      if (!res.ok) {
+        const result = await res.json();
+        setFormError(result.message ?? "Could not save the product.");
+        return;
+      }
+      setEditing(false);
+      load();
+    } catch {
+      setFormError("Could not save the product. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (error) return <AdminShell><ErrorState message={error} onRetry={load} /></AdminShell>;
@@ -91,11 +106,11 @@ export default function AdminProductDetailPage() {
         </Card>
       </div>
 
-      <Button className="mt-3 w-full" onClick={() => setEditing(true)}>✏️ Edit product details</Button>
+      <Button className="mt-3 w-full" onClick={() => { setFormError(null); setEditing(true); }}>✏️ Edit product details</Button>
 
       {editing && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={() => setEditing(false)}>
-          <div className="w-full max-w-md rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-full w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-3 font-serif text-lg font-semibold">Edit Product</h2>
             <label className="mb-1 block text-sm font-medium">Name</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -107,7 +122,8 @@ export default function AdminProductDetailPage() {
               Featured on home page
               <input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} />
             </label>
-            <Button className="mt-4 w-full" onClick={saveEdit}>Save changes</Button>
+            {formError && <p role="alert" className="mt-2 text-sm text-red-600">{formError}</p>}
+            <Button className="mt-4 w-full" onClick={saveEdit} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
           </div>
         </div>
       )}

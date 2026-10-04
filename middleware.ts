@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Role-based area protection (defense in depth - route handlers also enforce this).
-  if (pathname.startsWith("/store") || pathname.startsWith("/api/store")) {
+  if (pathname === "/store" || pathname.startsWith("/store/") || pathname === "/api/store" || pathname.startsWith("/api/store/")) {
     if (session.role !== "STORE_OWNER") {
       if (isApi) return NextResponse.json({ error: "forbidden", message: "Store owner access required." }, { status: 403 });
       return NextResponse.redirect(new URL("/login?session_expired=1", req.url));

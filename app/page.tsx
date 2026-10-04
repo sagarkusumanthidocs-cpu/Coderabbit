@@ -20,6 +20,7 @@ import { Search } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
+  const [reloadKey, setReloadKey] = useState(0);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const { cityId, setCityId } = useCity(cities);
   const [data, setData] = useState<any>(null);
@@ -32,7 +33,13 @@ export default function HomePage() {
   const { isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
-    fetch("/api/cities").then((r) => r.json()).then((d) => setCities(d.cities ?? []));
+    fetch("/api/cities").then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).message ?? "Could not load cities.");
+      return r.json();
+    }).then((d) => {
+      setCities(d.cities ?? []);
+      if (!d.cities?.length) { setError("No delivery cities are available yet."); setLoading(false); }
+    }).catch((e) => { setError(e.message); setLoading(false); });
     fetch("/api/orders")
       .then((r) => r.json())
       .then((d) => {
@@ -40,7 +47,7 @@ export default function HomePage() {
         setActiveOrder(active ?? null);
       })
       .catch(() => {});
-  }, []);
+  }, [reloadKey]);
 
   useEffect(() => {
     if (!cityId) return;
@@ -54,7 +61,7 @@ export default function HomePage() {
       .then((d) => setData(d))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [cityId]);
+  }, [cityId, reloadKey]);
 
   function goSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -96,7 +103,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && error && <div className="mt-6"><ErrorState message={error} onRetry={() => setCityId(cityId)} /></div>}
+        {!loading && error && <div className="mt-6"><ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} /></div>}
 
         {!loading && !error && data && (
           <>

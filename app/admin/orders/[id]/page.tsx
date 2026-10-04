@@ -122,9 +122,9 @@ export default function AdminOrderDetailPage() {
 
       <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
         <div>
-          <p className="font-medium text-ink">
-            {order.items[0]?.productName} × {order.items[0]?.quantity}
-          </p>
+          {order.items.map((line: { id: string; productName: string; quantity: number }) => (
+              <p key={line.id} className="font-medium text-ink">{line.productName} × {line.quantity}</p>
+            ))}
           <p className="text-sm text-muted">
             {order.store.name} · {order.city.name}
           </p>

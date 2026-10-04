@@ -24,7 +24,7 @@ export const reminderSchema = z.object({
   occasionName: z.string().trim().min(2, "Enter an occasion name (e.g. \"Priyanka's Birthday\")").max(80),
   recipientName: z.string().trim().min(2, "Enter a recipient name").max(60),
   occasionType: occasionTypeEnum,
-  date: z.string().trim().min(1, "Pick a date"),
+  date: z.string().date("Pick a valid date"),
   repeatYearly: z.boolean().optional().default(false),
   remindMe: z.string().trim().min(1, "Choose a reminder lead time"),
   giftCategory: z.string().trim().max(60).optional().or(z.literal("")),
@@ -43,7 +43,7 @@ export const groupGiftSchema = z.object({
   occasionType: occasionTypeEnum,
   productIds: z.array(z.string()).min(1, "Select at least one gift"),
   cityId: z.string().min(1, "Select a delivery city"),
-  deliveryDate: z.string().trim().min(1, "Pick a delivery date"),
+  deliveryDate: z.string().date("Pick a valid delivery date"),
   goalAmount: z.number().positive("Goal amount must be greater than 0"),
   splitType: splitTypeEnum.default("EQUAL"),
   message: z.string().trim().max(250).optional().or(z.literal("")),
@@ -137,7 +137,7 @@ export const productFormSchema = z.object({
     .number({ invalid_type_error: "Enter a price" })
     .finite()
     .gt(0, "Price must be greater than zero")
-    .refine((v) => Math.round(v * 100) === v * 100, "Max two decimal places"),
+    .multipleOf(0.01, "Max two decimal places"),
   imageUrl: z.string().trim().min(1, "Add an image URL"),
   isFeatured: z.boolean().optional().default(false),
   isAvailable: z.boolean().optional().default(true),

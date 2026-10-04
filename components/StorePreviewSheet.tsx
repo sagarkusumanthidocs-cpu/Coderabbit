@@ -5,6 +5,7 @@ import { X, Star, Clock, MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { StoreLogo } from "@/components/StoreCard";
+import { ErrorState } from "@/components/ErrorState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { formatINR } from "@/lib/utils";
 import { demoRating, demoDeliveryWindow } from "@/lib/demoRatings";
@@ -16,6 +17,8 @@ export function StorePreviewSheet({
   storeId: string | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [store, setStore] = useState<any>(null);
 
   useEffect(() => {
@@ -23,11 +26,18 @@ export function StorePreviewSheet({
       setStore(null);
       return;
     }
+    let cancelled = false;
+    setStore(null);
+    setError(null);
     fetch(`/api/stores/${storeId}`)
-      .then((r) => r.json())
-      .then((d) => setStore(d.store))
-      .catch(() => setStore(null));
-  }, [storeId]);
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).message ?? "Could not load this store.");
+        return r.json();
+      })
+      .then((d) => { if (!cancelled) setStore(d.store); })
+      .catch((e) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [storeId, reloadKey]);
 
   const open = !!storeId;
   const rating = storeId ? demoRating(storeId) : 0;
@@ -37,7 +47,13 @@ export function StorePreviewSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       {open && (
         <SheetContent>
-          {!store ? (
+          {!store && <SheetTitle className="mb-3 font-serif text-lg">Store preview</SheetTitle>}
+          {error ? (
+            <div>
+              <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />
+              <button className="mt-3 text-sm text-rose" onClick={() => onOpenChange(false)}>Close</button>
+            </div>
+          ) : !store ? (
             <div className="space-y-3">
               <LoadingSkeleton className="h-6 w-1/2" />
               <LoadingSkeleton className="h-56 w-full" />

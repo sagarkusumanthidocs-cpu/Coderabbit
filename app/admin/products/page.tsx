@@ -22,7 +22,7 @@ export default function AdminProductsPage() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load products.");
         return r.json();
       })
-      .then((d) => setProducts(d.products))
+      .then((d) => { setProducts(d.products); setError(null); })
       .catch((e) => setError(e.message));
   }
 

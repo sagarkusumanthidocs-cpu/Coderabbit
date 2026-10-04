@@ -1,4 +1,5 @@
 import "server-only";
+import { splitGroupGiftAmount } from "@/lib/groupGiftSplit";
 import { getDb } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/api-errors";
 import { ForbiddenError } from "@/lib/session";
@@ -38,6 +39,18 @@ export async function createGroupGift(userId: string, input: GroupGiftInput) {
     throw new ValidationError("One or more selected gifts could not be found.");
   }
 
+  if (products.some((product) => product.isArchived || !product.isAvailable)) {
+    throw new ValidationError("One or more selected gifts are no longer available.");
+  }
+  const stores = await db.store.findMany({ where: { id: { in: products.map((p) => p.storeId) } } });
+  if (stores.some((store) => store.cityId !== input.cityId || store.moderationStatus === "BLOCKED")) {
+    throw new ValidationError("Choose gifts available in the selected delivery city.");
+  }
+  const equalShares = splitGroupGiftAmount(input.goalAmount, input.contributors.length);
+  if (input.splitType === "EQUAL" && equalShares.some((share) => share <= 0)) {
+    throw new ValidationError("The goal must allow at least one paise per contributor.");
+  }
+
   const gg = await db.groupGift.create({
     data: {
       createdById: userId,
@@ -53,7 +66,7 @@ export async function createGroupGift(userId: string, input: GroupGiftInput) {
       contributors: {
         create: input.contributors.map((c, i) => ({
           name: c.name,
-          amount: new Prisma.Decimal(c.amount),
+          amount: new Prisma.Decimal(input.splitType === "EQUAL" ? equalShares[i] : c.amount),
           paid: i === 0, // the creator is recorded as having already contributed their share
         })),
       },
@@ -96,7 +109,7 @@ function titleCase(s: string) {
 
 /** Adds the derived, always-computed-server-side fields the UI needs: never trust a stored "collected" total. */
 function decorate<T extends { contributors: { amount: Prisma.Decimal; paid: boolean }[]; goalAmount: Prisma.Decimal }>(gg: T) {
-  const collected = gg.contributors.filter((c) => c.paid).reduce((s, c) => s + Number(c.amount), 0);
+  const collected = gg.contributors.filter((c) => c.paid).reduce((s, c) => s.add(c.amount), new Prisma.Decimal(0)).toNumber();
   const goal = Number(gg.goalAmount);
   return {
     ...gg,
@@ -104,4 +117,24 @@ function decorate<T extends { contributors: { amount: Prisma.Decimal; paid: bool
     percentFunded: goal > 0 ? Math.min(100, Math.round((collected / goal) * 100)) : 0,
     isFullyFunded: collected >= goal,
   };
+}
+
+/** Prepare the primary store's gifts together, as in the prototype's one-store checkout. */
+export async function prepareGroupGiftCart(userId: string, groupGiftId: string, allowPartial: boolean) {
+  const db = getDb();
+  const gift = await getGroupGift(userId, groupGiftId);
+  if (!gift.isFullyFunded) throw new ValidationError("Collect all contributions before placing the order.");
+  const storeId = gift.items[0]?.product.storeId;
+  const items = gift.items.filter((item) => item.product.storeId === storeId);
+  if (!items.length) throw new ValidationError("Choose a gift before placing the order.");
+  if (items.length !== gift.items.length && !allowPartial) {
+    throw new ValidationError("Confirm that you want to order gifts from one store at a time.");
+  }
+  if (items.some(({ product }) => product.isArchived || !product.isAvailable || !product.store.isOpen || product.store.moderationStatus === "BLOCKED")) {
+    throw new ValidationError("Some gifts or their store are no longer available. Your cart has not been changed.");
+  }
+  await db.$transaction([
+    db.cartItem.deleteMany({ where: { customerId: userId } }),
+    db.cartItem.createMany({ data: items.map(({ productId }) => ({ customerId: userId, productId, quantity: 1 })) }),
+  ]);
 }

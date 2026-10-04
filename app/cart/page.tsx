@@ -55,6 +55,7 @@ export default function CartPage() {
       })
       .then((d) => {
         setItems(d.cart.items);
+        window.dispatchEvent(new Event("giftly-cart-updated"));
         setError(null);
       })
       .catch((e) => setError(e.message));
@@ -62,6 +63,7 @@ export default function CartPage() {
 
   useEffect(() => {
     loadCart();
+    setShowCheckout(new URLSearchParams(window.location.search).get("checkout") === "1");
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((d) => {

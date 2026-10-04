@@ -24,6 +24,7 @@ function CheckoutInner() {
   const quantity = Number(sp.get("quantity") ?? 1);
   const cityId = sp.get("cityId") ?? "";
 
+  const [reloadKey, setReloadKey] = useState(0);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -65,17 +66,25 @@ function CheckoutInner() {
   }, [setValue]);
 
   useEffect(() => {
-    if (!productId) return;
+    setLoadError(null);
+    if (!productId || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+      setLoadError("Choose a gift and a quantity between 1 and 10 before checking out.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetch(`/api/products/${productId}`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).message ?? "Product not found.");
         return r.json();
       })
-      .then((d) => setProduct(d.product))
+      .then((d) => {
+        setProduct(d.product);
+        setValue("cityId", cityId || d.product.store.cityId);
+      })
       .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [productId, quantity, cityId, reloadKey, setValue]);
 
   const totals = useMemo(() => {
     if (!product) return { subtotal: 0, deliveryFee: 0, total: 0 };
@@ -91,7 +100,12 @@ function CheckoutInner() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, displayedTotal: totals.total }),
+        body: JSON.stringify({
+          ...data,
+          deliveryDate: data.deliveryOption === "SCHEDULED" ? data.deliveryDate : undefined,
+          deliverySlot: data.deliveryOption === "SCHEDULED" ? data.deliverySlot : undefined,
+          displayedTotal: totals.total,
+        }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -130,7 +144,8 @@ function CheckoutInner() {
     return (
       <CustomerShell>
         <div className="p-4">
-          <ErrorState message={loadError ?? "Product not found."} onRetry={() => router.refresh()} />
+          <ErrorState message={loadError ?? "Product not found."} onRetry={() => setReloadKey((key) => key + 1)} />
+          <Button className="mt-4 w-full" onClick={() => router.push("/products")}>Browse gifts</Button>
         </div>
       </CustomerShell>
     );
@@ -247,7 +262,7 @@ function CheckoutInner() {
                 </div>
                 <div>
                   <Label htmlFor="deliverySlot">Slot</Label>
-                  <Select id="deliverySlot" {...register("deliverySlot")}>
+                  <Select id="deliverySlot" {...register("deliverySlot", { setValueAs: (value) => value || undefined })}>
                     <option value="">Choose a slot</option>
                     {Object.entries(SLOT_WINDOWS).map(([key, w]) => (
                       <option key={key} value={key}>

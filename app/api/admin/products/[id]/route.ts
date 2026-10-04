@@ -18,9 +18,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 const patchSchema = z.union([
-  z.object({ name: z.string().min(2), description: z.string(), price: z.number().positive(), isFeatured: z.boolean() }),
-  z.object({ isAvailable: z.boolean() }),
-  z.object({ isFeatured: z.boolean() }),
+  z.object({ name: z.string().trim().min(2), description: z.string().trim().min(1), price: z.number().finite().positive().multipleOf(0.01), isFeatured: z.boolean() }).strict(),
+  z.object({ isAvailable: z.boolean() }).strict(),
+  z.object({ isFeatured: z.boolean() }).strict(),
 ]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

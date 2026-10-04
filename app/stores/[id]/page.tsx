@@ -17,10 +17,12 @@ export default function StoreDetailPage() {
   const router = useRouter();
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { cityId } = useCity([]);
 
   useEffect(() => {
+    setError(null);
     setLoading(true);
     fetch(`/api/stores/${params.id}`)
       .then(async (r) => {
@@ -30,7 +32,7 @@ export default function StoreDetailPage() {
       .then((d) => setStore(d.store))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.id, reloadKey]);
 
   if (loading) {
     return (
@@ -47,7 +49,7 @@ export default function StoreDetailPage() {
     return (
       <CustomerShell>
         <div className="p-4">
-          <ErrorState message={error ?? "Store not found."} onRetry={() => router.refresh()} />
+          <ErrorState message={error ?? "Store not found."} onRetry={() => setReloadKey((key) => key + 1)} />
         </div>
       </CustomerShell>
     );

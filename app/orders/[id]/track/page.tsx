@@ -289,9 +289,9 @@ export default function TrackOrderPage() {
 
         <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
           <div>
-            <p className="text-sm font-medium text-ink">
-              {item?.productName} × {item?.quantity}
-            </p>
+            {order.items.map((line: { id: string; productName: string; quantity: number }) => (
+              <p key={line.id} className="text-sm font-medium text-ink">{line.productName} × {line.quantity}</p>
+            ))}
             <p className="text-xs text-muted">
               {order.store.name} · {order.city.name}
             </p>

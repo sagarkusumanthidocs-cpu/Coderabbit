@@ -82,3 +82,28 @@ describe("checkout schema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("date-only form fields", () => {
+  it("rejects invalid reminder and group gift dates before database writes", async () => {
+    const { reminderSchema, groupGiftSchema } = await import("@/lib/validation");
+    const reminder = { occasionName: "Birthday", recipientName: "Alex", occasionType: "BIRTHDAY", remindMe: "3 days before" };
+    const group = { recipientName: "Alex", occasionType: "BIRTHDAY", productIds: ["gift"], cityId: "city", goalAmount: 100, contributors: [{ name: "You", amount: 100 }] };
+    for (const invalid of ["not-a-date", "2026-02-30", ""]) {
+      expect(reminderSchema.safeParse({ ...reminder, date: invalid }).success).toBe(false);
+      expect(groupGiftSchema.safeParse({ ...group, deliveryDate: invalid }).success).toBe(false);
+    }
+    expect(reminderSchema.safeParse({ ...reminder, date: "2028-02-29" }).success).toBe(true);
+    expect(groupGiftSchema.safeParse({ ...group, deliveryDate: "2028-02-29" }).success).toBe(true);
+  });
+});
+
+
+describe("product prices", () => {
+  it("accepts two decimal prices despite floating point multiplication artifacts", async () => {
+    const { productFormSchema } = await import("@/lib/validation");
+    const product = { name: "Gift", description: "A gift", categoryId: "flowers", imageUrl: "/images/placeholder.svg" };
+    expect(productFormSchema.safeParse({ ...product, price: 19.99 }).success).toBe(true);
+    expect(productFormSchema.safeParse({ ...product, price: 29.99 }).success).toBe(true);
+    expect(productFormSchema.safeParse({ ...product, price: 19.999 }).success).toBe(false);
+  });
+});

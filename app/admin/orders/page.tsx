@@ -27,7 +27,7 @@ function AdminOrdersInner() {
         if (!r.ok) throw new Error((await r.json()).message ?? "Could not load orders.");
         return r.json();
       })
-      .then((d) => setOrders(d.orders))
+      .then((d) => { setOrders(d.orders); setError(null); })
       .catch((e) => setError(e.message));
   }
 

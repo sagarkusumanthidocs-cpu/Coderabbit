@@ -17,6 +17,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -25,6 +26,7 @@ export default function ProductDetailPage() {
   const { cityId } = useCity([]); // just read stored preference
 
   useEffect(() => {
+    setError(null);
     setLoading(true);
     fetch(`/api/products/${params.id}`)
       .then(async (r) => {
@@ -34,7 +36,7 @@ export default function ProductDetailPage() {
       .then((d) => setProduct(d.product))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.id, reloadKey]);
 
   if (loading) {
     return (
@@ -52,7 +54,7 @@ export default function ProductDetailPage() {
     return (
       <CustomerShell>
         <div className="p-4">
-          <ErrorState message={error ?? "Product not found."} onRetry={() => router.refresh()} />
+          <ErrorState message={error ?? "Product not found."} onRetry={() => setReloadKey((key) => key + 1)} />
         </div>
       </CustomerShell>
     );
@@ -89,8 +91,11 @@ export default function ProductDetailPage() {
         }
         return;
       }
+      window.dispatchEvent(new Event("giftly-cart-updated"));
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
+    } catch {
+      setCartError("Could not add this to your cart. Please try again.");
     } finally {
       setAddingToCart(false);
     }
