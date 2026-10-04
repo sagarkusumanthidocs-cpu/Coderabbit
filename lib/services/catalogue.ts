@@ -87,3 +87,18 @@ export async function getStoreDetail(storeId: string) {
   if (!store || store.moderationStatus === "BLOCKED") throw new NotFoundError("Store not found.");
   return store;
 }
+
+export async function searchStores(filters: Pick<ProductListFilters, "cityId" | "query" | "categorySlug">) {
+  const query = filters.query?.trim();
+  if (!query) return [];
+  return getDb().store.findMany({
+    where: {
+      cityId: filters.cityId,
+      ...VISIBLE_STORE_FILTER,
+      name: { contains: query, mode: "insensitive" },
+      ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
+    },
+    include: { category: true, city: true },
+    orderBy: { name: "asc" },
+  });
+}
