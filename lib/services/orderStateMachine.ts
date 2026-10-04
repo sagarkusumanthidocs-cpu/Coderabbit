@@ -36,7 +36,7 @@ const STORE_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   STORE_ACCEPTED: ["PREPARING_GIFT"],
   PREPARING_GIFT: ["READY_FOR_PICKUP"],
   READY_FOR_PICKUP: ["OUT_FOR_DELIVERY"],
-  OUT_FOR_DELIVERY: [], // marking Delivered is reserved for the delivery/admin level, not the store owner
+  OUT_FOR_DELIVERY: ["DELIVERED"],
   DELIVERED: [],
   REJECTED: [],
 };

@@ -17,7 +17,8 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset:dev": "tsx prisma/reset-dev.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "build:vercel": "npm run db:migrate && npm run build"
   },
   "dependencies": {
     "@prisma/client": "6.16.3",

@@ -13,6 +13,11 @@ describe("store transitions", () => {
   it("allows ORDER_PLACED -> REJECTED", () => {
     expect(isValidStoreTransition("ORDER_PLACED", "REJECTED")).toBe(true);
   });
+  it("offers Delivered only after Out for Delivery", () => {
+    expect(getValidStoreTransitions("OUT_FOR_DELIVERY")).toEqual(["DELIVERED"]);
+    expect(isValidStoreTransition("OUT_FOR_DELIVERY", "DELIVERED")).toBe(true);
+    expect(isValidStoreTransition("READY_FOR_PICKUP", "DELIVERED")).toBe(false);
+  });
   it("forbids skipping PREPARING_GIFT -> OUT_FOR_DELIVERY", () => {
     expect(isValidStoreTransition("PREPARING_GIFT", "OUT_FOR_DELIVERY")).toBe(false);
   });

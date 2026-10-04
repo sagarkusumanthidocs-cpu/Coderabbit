@@ -83,7 +83,7 @@ second tab logging in as a different role will replace the first tab's session t
 ## 3. Database notes
 
 - Schema: `prisma/schema.prisma`. Migrations: `prisma/migrations/` (init, group gifts &
-  reminders, user phone, store hours, cart).
+  reminders, user phone, store hours, cart, mock card payment).
 - All monetary values are `Decimal(10,2)`; delivery fees are fixed (₹49 standard, ₹99
   express, ₹79 scheduled) and totals are **always recalculated server-side** — the client's
   displayed total is only used to detect drift and force a re-review.
@@ -134,7 +134,8 @@ deployed app.
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
+| `npm run build` | Production build without database changes |
+| `npm run build:vercel` | Apply pending migrations, then build for Vercel |
 | `npm run start` | Start the production server (after `build`) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -155,17 +156,27 @@ deployed app.
    integration uses different names.
 4. Add `SESSION_SECRET` as an environment variable (generate with `openssl rand -base64 32`).
    **Never** prefix it with `NEXT_PUBLIC_`.
-5. Deploy. Vercel auto-detects Next.js, runs `npm install` and `npm run build`
-   (`prisma generate && next build`). Node 20+ is required (`engines` in `package.json`).
-6. Run the migration against your production database once, from your local machine or a
-   one-off Vercel CLI command:
+5. Deploy. `vercel.json` sets the Build Command to `npm run build:vercel`:
+   pending Prisma migrations run **before** the Next.js build. A failed migration
+   fails the deployment, so new code is not published against an older schema.
+   This includes the `CARD_MOCK` enum update required by credit-card checkout.
+   Node 20+ is required (`engines` in `package.json`). If an existing project has
+   a custom Build Command, ensure it uses `npm run build:vercel`.
+6. Populate demo records separately, with both database variables pointing to the
+   intended deployment database:
    ```bash
-   DATABASE_URL="<your production DATABASE_URL>" npx prisma migrate deploy
-   DATABASE_URL="<your production DATABASE_URL>" npm run db:seed
+   npm run db:seed
    ```
-   Do **not** run the seed or migration automatically on every deploy.
-7. Keep a separate Neon branch/database for preview deployments if you want preview and
-   production data isolated (Neon's branching feature is well suited to this).
+   Seeding is never part of the build. No database reset is needed.
+7. Configure a separate database and both database URLs for preview deployments
+   so their migrations and test data stay isolated from production. `DIRECT_URL`
+   must point to the same database as `DATABASE_URL` and allow migrations.
+
+**Existing credit-card checkout error:** deployments made before this build change
+may lack `20261004000000_mock_card_payment`. Redeploy with the build command above,
+or run `npm run db:migrate` using that deployment's database variables before
+starting the app. The migration preserves existing orders and payment records.
+Card and UPI remain mock payments; neither collects money.
 
 ## 6. A three-role demo walkthrough
 
@@ -176,7 +187,10 @@ deployed app.
    (`store@giftapp.demo`). Go to **Orders** → find the new order → **Accept** → advance it
    through Preparing Gift → Ready for Pickup → Out for Delivery → Delivered.
 3. Back in the customer tab, open **My Orders** → tap the order → the tracking timeline
-   reflects each update (polls every 15s, or tap Refresh).
+   reflects each update (polls every 15s, or tap Refresh). After the store marks
+   Delivered, upload a delivery photo, tick the confirmation checkbox, and choose
+   **Confirm Delivery**. The store then sees **Customer confirmed delivery**, the
+   photo, and the confirmation time.
 4. Open a **third profile** → `/login` → **Use demo Admin**. Go to **Orders**, open the
    same order, and try **Override status** — pick any status, give a reason, confirm. The
    immutable history list shows the override with its reason, actor, and timestamp, and
@@ -269,3 +283,11 @@ demo stores and have no proof image or customer confirmation initially.
 Run `npm run db:seed` against the intended demo deployment database to add these
 records. Rerunning the seed preserves existing orders and submitted photos; it
 never resets customer confirmations. This feature requires no new migration.
+
+### Store delivery and customer verification
+
+The store advances an order through **Out for Delivery → Delivered** using the
+order's action button. Marking Out for Delivery keeps the order in transit until
+the owner explicitly marks Delivered. This unlocks the customer's photo upload;
+the order stays **Awaiting customer photo** until the customer uploads a photo
+and confirms receipt. Only that customer's confirmation marks it verified.

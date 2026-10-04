@@ -170,12 +170,13 @@ export default function StoreOrderDetailPage() {
               key={s}
               trigger={<Button>Mark as {ORDER_STATUS_LABELS[s]}</Button>}
               title={`Mark order as ${ORDER_STATUS_LABELS[s]}?`}
+              description={s === "DELIVERED" ? "The customer can then upload a photo and confirm receipt. Their confirmation will appear on this order." : undefined}
               confirmLabel="Confirm"
               onConfirm={() => transition(s)}
             />
           ))}
         {order.status === "OUT_FOR_DELIVERY" && (
-          <p className="text-sm text-muted">🚚 Out for delivery - marking this as delivered happens at the delivery/rider level, outside store management.</p>
+          <p className="text-sm text-muted">🚚 Once the order arrives, mark it as Delivered so the customer can upload a photo and confirm receipt.</p>
         )}
         {order.status === "DELIVERED" && <p className="text-sm text-green-700">This order has been delivered.</p>}
         {order.status === "REJECTED" && <p className="text-sm text-red-700">Reason: {order.rejectionReason}</p>}
